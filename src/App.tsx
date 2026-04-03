@@ -125,10 +125,11 @@ function AppContent() {
   // --- AUTH STATE ---
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(false);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
-  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  const [authMode, setAuthMode] = useState<'login' | 'signup' | 'reset'>('login');
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   // --- REFS ---
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -139,13 +140,11 @@ function AppContent() {
   // --- INITIALIZATION ---
   useEffect(() => {
     if (!supabase) {
-      setAuthLoading(false);
       return;
     }
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) fetchProfile(session.user.id);
-      setAuthLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -155,7 +154,6 @@ function AppContent() {
         setProfile(null);
         setItems([]);
       }
-      setAuthLoading(false);
     });
 
     // Forced accessibility styles
@@ -204,19 +202,30 @@ function AppContent() {
   // --- AUTH HANDLERS ---
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     setAuthLoading(true);
+    setMessage(null);
     try {
-      if (authMode === 'signup') {
-        const { error } = await supabase.auth.signUp({ email: authEmail, password: authPassword });
-        if (error) throw error;
-        alert('Confira seu email!');
-      } else {
+      if (authMode === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
         if (error) throw error;
+      } else if (authMode === 'signup') {
+        const { error } = await supabase.auth.signUp({ email: authEmail, password: authPassword });
+        if (error) throw error;
+        setMessage({ type: 'success', text: 'Conta criada! Entre agora.' });
+        setAuthMode('login');
+      } else if (authMode === 'reset') {
+        const { error } = await supabase.auth.resetPasswordForEmail(authEmail, {
+          redirectTo: window.location.origin
+        });
+        if (error) throw error;
+        setMessage({ type: 'success', text: 'E-mail de recuperação enviado!' });
+        setAuthMode('login');
       }
-    } catch (err: any) { setError(err.message); }
-    finally { setAuthLoading(false); }
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message === 'Email not confirmed' ? 'Confirme seu e-mail ou desative a verificação no Supabase.' : err.message });
+    } finally {
+      setAuthLoading(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -357,31 +366,45 @@ function AppContent() {
     </div>
   );
 
-  if (authLoading) return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center">
-      <XDXLogo className="w-20 h-20 animate-pulse mb-4" />
-      <Loader2 className="w-8 h-8 text-emerald animate-spin" />
-    </div>
-  );
-
   if (!session) return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-md space-y-8">
+    <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-6 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]">
+      <div className="w-full max-w-md">
         <div className="text-center">
           <XDXLogo className="w-24 h-24 mx-auto mb-4" />
           <h1 className="text-5xl font-black text-[#003d4d] italic tracking-tighter uppercase">XĐX</h1>
           <p className="text-gray-400 font-bold uppercase tracking-widest text-xs mt-2">Tecnologia em Compras</p>
         </div>
-        <form onSubmit={handleAuth} className="bg-white p-8 rounded-[3rem] shadow-[0_20px_60px_rgba(0,0,0,0.1)] border border-gray-50 space-y-6">
-          <input type="email" value={authEmail} onChange={e => setAuthEmail(e.target.value)} placeholder="E-MAIL" required className="w-full bg-gray-50 p-6 rounded-2xl font-black text-xl outline-none focus:ring-4 ring-emerald/20 transition-all" />
-          <input type="password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} placeholder="SENHA" required className="w-full bg-gray-50 p-6 rounded-2xl font-black text-xl outline-none focus:ring-4 ring-emerald/20 transition-all" />
-          {error && <p className="text-red-500 font-bold text-center text-sm">{error}</p>}
-          <button type="submit" className="w-full bg-emerald text-white py-6 rounded-2xl font-black uppercase text-xl shadow-xl active:scale-95 transition-all">
-            {authMode === 'login' ? 'Entrar' : 'Cadastrar'}
+        <form onSubmit={handleAuth} className="bg-white p-8 rounded-[3rem] shadow-[0_20px_60px_rgba(0,0,0,0.1)] border border-gray-50 mt-8 space-y-6">
+          <h2 className="text-2xl font-black text-[#003d4d] text-center uppercase tracking-tighter">
+            {authMode === 'login' ? 'Bem-vindo' : authMode === 'signup' ? 'Nova Conta' : 'Recuperar Acesso'}
+          </h2>
+          
+          <input type="email" value={authEmail} onChange={e => setAuthEmail(e.target.value)} placeholder="SEU E-MAIL" required className="w-full bg-gray-50 p-6 rounded-2xl font-black text-xl outline-none focus:ring-4 ring-emerald/20 transition-all" />
+          
+          {authMode !== 'reset' && (
+            <input type="password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} placeholder="SUA SENHA" required className="w-full bg-gray-50 p-6 rounded-2xl font-black text-xl outline-none focus:ring-4 ring-emerald/20 transition-all" />
+          )}
+
+          {message && (
+            <p className={`font-bold text-center text-sm p-4 rounded-xl ${message.type === 'success' ? 'bg-emerald/10 text-emerald' : 'bg-red-50 text-red-500'}`}>
+              {message.text}
+            </p>
+          )}
+
+          <button type="submit" disabled={authLoading} className="w-full bg-emerald text-white py-6 rounded-2xl font-black uppercase text-xl shadow-xl active:scale-95 transition-all disabled:opacity-50">
+            {authLoading ? 'Processando...' : authMode === 'login' ? 'Entrar' : authMode === 'signup' ? 'Cadastrar' : 'Enviar Link'}
           </button>
-          <button type="button" onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} className="w-full text-gray-400 font-black uppercase tracking-widest text-[10px]">
-            {authMode === 'login' ? 'Criar nova conta' : 'Já tenho conta'}
-          </button>
+
+          <div className="flex flex-col gap-4 text-center">
+            {authMode === 'login' && (
+              <button type="button" onClick={() => setAuthMode('reset')} className="text-emerald font-black uppercase tracking-widest text-[10px]">
+                Esqueci minha senha
+              </button>
+            )}
+            <button type="button" onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} className="text-gray-400 font-black uppercase tracking-widest text-[10px]">
+              {authMode === 'login' ? 'Criar nova conta' : 'Voltar para Login'}
+            </button>
+          </div>
         </form>
       </div>
     </div>

@@ -128,7 +128,8 @@ function AppContent() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
-  const [authMode, setAuthMode] = useState<'login' | 'signup' | 'reset'>('login');
+  const [newPassword, setNewPassword] = useState('');
+  const [authMode, setAuthMode] = useState<'login' | 'signup' | 'reset' | 'reset-password'>('login');
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   // --- REFS ---
@@ -147,10 +148,14 @@ function AppContent() {
       if (session) fetchProfile(session.user.id);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
-      if (session) fetchProfile(session.user.id);
-      else {
+      if (session) {
+        fetchProfile(session.user.id);
+        if (event === 'PASSWORD_RECOVERY') {
+          setAuthMode('reset-password');
+        }
+      } else {
         setProfile(null);
         setItems([]);
       }
@@ -219,6 +224,11 @@ function AppContent() {
         });
         if (error) throw error;
         setMessage({ type: 'success', text: 'E-mail de recuperação enviado!' });
+        setAuthMode('login');
+      } else if (authMode === 'reset-password') {
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        if (error) throw error;
+        setMessage({ type: 'success', text: 'Senha atualizada com sucesso!' });
         setAuthMode('login');
       }
     } catch (err: any) {
@@ -376,13 +386,19 @@ function AppContent() {
         </div>
         <form onSubmit={handleAuth} className="bg-white p-8 rounded-[3rem] shadow-[0_20px_60px_rgba(0,0,0,0.1)] border border-gray-50 mt-8 space-y-6">
           <h2 className="text-2xl font-black text-[#003d4d] text-center uppercase tracking-tighter">
-            {authMode === 'login' ? 'Bem-vindo' : authMode === 'signup' ? 'Nova Conta' : 'Recuperar Acesso'}
+            {authMode === 'login' ? 'Bem-vindo' : authMode === 'signup' ? 'Nova Conta' : authMode === 'reset' ? 'Recuperar Acesso' : 'Nova Senha'}
           </h2>
           
-          <input type="email" value={authEmail} onChange={e => setAuthEmail(e.target.value)} placeholder="SEU E-MAIL" required className="w-full bg-gray-50 p-6 rounded-2xl font-black text-xl outline-none focus:ring-4 ring-emerald/20 transition-all" />
+          {authMode !== 'reset-password' && (
+            <input type="email" value={authEmail} onChange={e => setAuthEmail(e.target.value)} placeholder="SEU E-MAIL" required className="w-full bg-gray-50 p-6 rounded-2xl font-black text-xl outline-none focus:ring-4 ring-emerald/20 transition-all" />
+          )}
           
-          {authMode !== 'reset' && (
+          {(authMode === 'login' || authMode === 'signup') && (
             <input type="password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} placeholder="SUA SENHA" required className="w-full bg-gray-50 p-6 rounded-2xl font-black text-xl outline-none focus:ring-4 ring-emerald/20 transition-all" />
+          )}
+
+          {authMode === 'reset-password' && (
+            <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="NOVA SENHA" required className="w-full bg-gray-50 p-6 rounded-2xl font-black text-xl outline-none focus:ring-4 ring-emerald/20 transition-all" />
           )}
 
           {message && (
@@ -392,7 +408,7 @@ function AppContent() {
           )}
 
           <button type="submit" disabled={authLoading} className="w-full bg-emerald text-white py-6 rounded-2xl font-black uppercase text-xl shadow-xl active:scale-95 transition-all disabled:opacity-50">
-            {authLoading ? 'Processando...' : authMode === 'login' ? 'Entrar' : authMode === 'signup' ? 'Cadastrar' : 'Enviar Link'}
+            {authLoading ? 'Processando...' : authMode === 'login' ? 'Entrar' : authMode === 'signup' ? 'Cadastrar' : authMode === 'reset' ? 'Enviar Link' : 'Salvar Senha'}
           </button>
 
           <div className="flex flex-col gap-4 text-center">
@@ -401,8 +417,8 @@ function AppContent() {
                 Esqueci minha senha
               </button>
             )}
-            <button type="button" onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} className="text-gray-400 font-black uppercase tracking-widest text-[10px]">
-              {authMode === 'login' ? 'Criar nova conta' : 'Voltar para Login'}
+            <button type="button" onClick={() => setAuthMode((authMode === 'login' || authMode === 'reset-password') ? 'signup' : 'login')} className="text-gray-400 font-black uppercase tracking-widest text-[10px]">
+              {(authMode === 'login' || authMode === 'reset-password') ? 'Criar nova conta' : 'Voltar para Login'}
             </button>
           </div>
         </form>

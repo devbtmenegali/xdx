@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="XĐX Mercado" />
+    <meta name="theme-color" content="#10b981" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/logo192.png" />
+    <style>
+      :root {
+        color-scheme: light only !important;
+      }
+      html, body { 
+        background-color: #ffffff !important; 
+        background: #ffffff !important;
+        background-image: linear-gradient(#ffffff, #ffffff) !important;
+        background-repeat: no-repeat !important;
+        background-size: cover !important;
+        color: #1a202c !important; 
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        color-scheme: light !important;
+        forced-color-adjust: none !important;
+        -webkit-tap-highlight-color: transparent;
+      }
+      #root {
+        background-color: #ffffff !important;
+        background-image: linear-gradient(#ffffff, #ffffff) !important;
+        min-height: 100vh;
+      }
+    </style>
+    <title>Mercado Scan</title>
+  </head>
+  <body>
+    <div id="root">
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background-color: #ffffff; color: #1a202c; font-family: sans-serif; text-align: center; padding: 20px;">
+        <h2 style="margin-bottom: 10px; color: #1a202c;">Mercado Scan</h2>
+        <p style="color: #4a5568;">Carregando aplicativo...</p>
+      </div>
+    </div>
+    <script>
+      // Global error handler for mobile debugging
+      window.onerror = function(msg, url, line, col, error) {
+        console.error("Global Error:", msg, "at", url, ":", line);
+        // If the app fails to load, show a visible error
+        setTimeout(function() {
+          var root = document.getElementById('root');
+          if (root && root.innerText.includes('Carregando')) {
+            root.innerHTML = '<div style="padding:20px; text-align:center; font-family:sans-serif;">' +
+              '<h2 style="color:#e53e3e">Erro ao Carregar</h2>' +
+              '<p style="color:#4a5568">Ocorreu um erro técnico. Tente abrir em uma aba anônima ou limpar o cache.</p>' +
+              '<button onclick="location.reload()" style="background:#10b981; color:white; border:none; padding:10px 20px; border-radius:20px; font-weight:bold;">Tentar Novamente</button>' +
+              '</div>';
+          }
+        }, 5000);
+        return false;
+      };
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

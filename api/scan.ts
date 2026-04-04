@@ -16,7 +16,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const modelName = "gemini-1.5-pro"; 
+    const modelName = "gemini-1.5-flash"; 
     const imageData = image.includes(",") ? image.split(",")[1] : image;
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
     
@@ -26,7 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body: JSON.stringify({
         contents: [{
           parts: [
-            { text: "Você é um especialista em ler etiquetas de mercado. Extraia o NOME do produto e o PREÇO unitário da imagem. Retorne APENAS um JSON no formato: {\"name\": \"string\", \"price\": number}." },
+            { text: "Extract: Product Name, Price. Format ONLY JSON: {\"name\": \"string\", \"price\": number}" },
             { inlineData: { mimeType: "image/jpeg", data: imageData } }
           ]
         }]

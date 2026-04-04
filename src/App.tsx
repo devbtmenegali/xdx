@@ -404,21 +404,27 @@ function AppContent() {
     setIsScanning(true);
     setError(null);
 
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    
-    // Captura estável em 800px (Suficiente para OCR e leve para upload)
-    canvas.width = 800;
-    canvas.height = (800 * video.videoHeight) / video.videoWidth;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
-    const image = canvas.toDataURL('image/jpeg', 0.85);
-    setLastCapturedImage(image);
-    
     try {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      
+      const width = video.videoWidth || 1280;
+      const height = video.videoHeight || 720;
+      
+      canvas.width = 800;
+      canvas.height = (800 * height) / width;
+      
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      const image = canvas.toDataURL('image/jpeg', 0.85);
+      setLastCapturedImage(image);
+      
+      // Abre o modal IMEDIATAMENTE com estado de carregamento
+      setScannedProduct({ name: 'Lendo etiqueta...', price: 0 });
+      setIsCameraOpen(false);
+
       const res = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -428,14 +434,15 @@ function AppContent() {
       const result = await res.json();
       
       if (res.ok && result) {
-        setIsCameraOpen(false);
-        setQuantity(1);
         setScannedProduct(result);
+        setQuantity(1);
       } else {
-        setError('Não foi possível identificar. Digite manualmente.');
+        setScannedProduct({ name: '', price: 0 });
+        setError('Não foi possível identificar automaticamente.');
       }
     } catch (e: any) {
-      setError('Erro na conexão. Tente novamente.');
+      setError('Erro de conexão. Verifique seu 4G.');
+      setScannedProduct({ name: '', price: 0 });
     } finally {
       setIsScanning(false);
     }

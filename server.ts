@@ -16,7 +16,6 @@ async function startServer() {
 
   app.use(express.json({ limit: '50mb' }));
 
-  // API de Escaneamento (Servidor) - Mantido para proteger a chave Gemini
   app.post("/api/scan", async (req, res) => {
     try {
       const { image } = req.body;
@@ -28,18 +27,18 @@ async function startServer() {
       }
 
       const ai = new GoogleGenAI({ apiKey });
-      const modelName = "gemini-3-flash-preview"; 
+      const modelName = "gemini-1.5-flash"; 
       const imageData = image.includes(",") ? image.split(",")[1] : image;
 
       console.log("Servidor iniciando scan com modelo:", modelName);
 
-      const result = await ai.models.generateContent({
+      const response = await ai.models.generateContent({
         model: modelName,
         contents: [
           {
             role: "user",
             parts: [
-              { text: "Você é um especialista em leitura de etiquetas de supermercado e preços. Extraia o NOME do produto e o PREÇO unitário. Retorne APENAS um JSON: {\"name\": \"string\", \"price\": number}. Se não ler, use {\"name\": \"\", \"price\": 0}." },
+              { text: "Você é um especialista em leitura de etiquetas de supermercado e preços. Extraia o NOME do produto e o PREÇO unitário da imagem. Retorne APENAS um JSON: {\"name\": \"NOME DO PRODUTO\", \"price\": 0.00}. Se não conseguir ler com clareza, tente deduzir o nome e defina o preço como 0." },
               { inlineData: { data: imageData, mimeType: "image/jpeg" } }
             ]
           }
@@ -57,7 +56,7 @@ async function startServer() {
         }
       });
 
-      const text = result.text || "{}";
+      const text = response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
       console.log("Resultado da IA:", text);
       res.json(JSON.parse(text));
     } catch (error: any) {

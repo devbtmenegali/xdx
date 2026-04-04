@@ -203,6 +203,38 @@ function AppContent() {
     if (scannedProduct?.name) checkLastPrice(scannedProduct.name);
   }, [scannedProduct]);
 
+  const handleAnonymousLogin = async () => {
+    setAuthLoading(true);
+    setMessage(null);
+    try {
+      const { error } = await supabase.auth.signInAnonymously();
+      if (error) throw error;
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message });
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    try {
+      const { error } = await supabase.from('profiles').update({
+        full_name: authEmail, // Usando o campo temp de input
+        phone: authPassword,
+        city: newPassword
+      }).eq('id', session.user.id);
+      if (error) throw error;
+      fetchProfile(session.user.id);
+      setMessage({ type: 'success', text: 'Perfil atualizado!' });
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message });
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (authMode !== 'reset' && authPassword.length < 6) {
@@ -395,50 +427,78 @@ function AppContent() {
   );
 
   if (!session) return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-6 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]">
+    <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-6 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] animate-fade-in">
       <div className="w-full max-w-md">
-        <div className="text-center">
-          <XDXLogo className="w-24 h-24 mx-auto mb-4" />
-          <h1 className="text-5xl font-black text-[#003d4d] italic tracking-tighter uppercase">XĐX</h1>
-          <p className="text-gray-400 font-bold uppercase tracking-widest text-xs mt-2">Tecnologia em Compras</p>
+        <div className="text-center mb-12">
+          <XDXLogo className="w-32 h-32 mx-auto mb-6 drop-shadow-2xl" />
+          <h1 className="text-6xl font-black text-[#003d4d] italic tracking-tighter uppercase leading-none">XĐX</h1>
+          <p className="text-emerald font-black uppercase tracking-widest text-sm mt-3 bg-emerald/10 inline-block px-4 py-1 rounded-full">Mercado Inteligente</p>
         </div>
-        <form onSubmit={handleAuth} className="bg-white p-8 rounded-[3rem] shadow-[0_20px_60px_rgba(0,0,0,0.1)] border border-gray-50 mt-8 space-y-6">
-          <h2 className="text-2xl font-black text-[#003d4d] text-center uppercase tracking-tighter">
-            {authMode === 'login' ? 'Bem-vindo' : authMode === 'signup' ? 'Nova Conta' : authMode === 'reset' ? 'Recuperar Acesso' : 'Nova Senha'}
-          </h2>
-          
-          {authMode !== 'reset-password' && (
-            <input type="email" value={authEmail} onChange={e => setAuthEmail(e.target.value)} placeholder="SEU E-MAIL" required className="w-full bg-gray-50 p-6 rounded-2xl font-black text-xl outline-none focus:ring-4 ring-emerald/20 transition-all" />
-          )}
-          
-          {(authMode === 'login' || authMode === 'signup') && (
-            <input type="password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} placeholder="SUA SENHA" required className="w-full bg-gray-50 p-6 rounded-2xl font-black text-xl outline-none focus:ring-4 ring-emerald/20 transition-all" />
-          )}
+        
+        <div className="bg-white p-10 rounded-[3.5rem] shadow-[0_40px_100px_rgba(0,0,0,0.15)] border-b-8 border-emerald/20 space-y-8 animate-scale-up">
+          <div className="text-center space-y-2">
+            <h2 className="text-3xl font-black text-[#003d4d] uppercase tracking-tighter">Pronto para começar?</h2>
+            <p className="text-gray-400 font-bold text-lg">Acesso rápido e sem senhas.</p>
+          </div>
 
-          {authMode === 'reset-password' && (
-            <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="NOVA SENHA" required className="w-full bg-gray-50 p-6 rounded-2xl font-black text-xl outline-none focus:ring-4 ring-emerald/20 transition-all" />
-          )}
-
+          <button 
+            type="button" 
+            onClick={handleAnonymousLogin} 
+            disabled={authLoading}
+            className="w-full bg-emerald text-white py-10 rounded-3xl font-black uppercase text-3xl shadow-[0_15px_40px_rgba(16,185,129,0.4)] active:scale-95 hover:brightness-110 transition-all disabled:opacity-50 flex flex-col items-center justify-center gap-2"
+          >
+            {authLoading ? <Loader2 className="w-10 h-10 animate-spin" /> : (
+              <>
+                <span>ACESSAR AGORA</span>
+                <span className="text-xs opacity-70">Um clique para entrar</span>
+              </>
+            )}
+          </button>
+          
           {message && (
-            <p className={`font-bold text-center text-sm p-4 rounded-xl ${message.type === 'success' ? 'bg-emerald/10 text-emerald' : 'bg-red-50 text-red-500'}`}>
+            <p className="font-bold text-center text-sm p-4 bg-red-50 text-red-500 rounded-xl">
               {message.text}
             </p>
           )}
 
-          <button type="submit" disabled={authLoading} className="w-full bg-emerald text-white py-6 rounded-2xl font-black uppercase text-xl shadow-xl active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-3">
-            {authLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : (authMode === 'login' ? 'Entrar' : authMode === 'signup' ? 'Cadastrar' : 'Enviar Link')}
-          </button>
+          <p className="text-center text-gray-300 font-bold text-xs uppercase tracking-widest">Tecnologia em Compras para todos</p>
+        </div>
+      </div>
+    </div>
+  );
 
-          <div className="flex flex-col gap-4 text-center pt-2">
-            {authMode === 'login' && (
-              <button type="button" onClick={() => setAuthMode('reset')} className="text-emerald font-black uppercase tracking-widest text-[12px]">
-                Esqueci minha senha
-              </button>
-            )}
-            <button type="button" onClick={() => setAuthMode((authMode === 'login' || authMode === 'reset-password') ? 'signup' : 'login')} className="text-gray-400 font-black uppercase tracking-widest text-[12px]">
-              {(authMode === 'login' || authMode === 'reset-password') ? 'Ainda não tenho conta' : 'Voltar para Login'}
-            </button>
+  // Profile setup after login if name is missing
+  if (session && profile && !profile.full_name) return (
+    <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-6 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] animate-fade-in">
+      <div className="w-full max-w-md bg-white p-10 rounded-[3rem] shadow-2xl border-t-8 border-emerald space-y-8 animate-scale-up">
+        <div className="text-center">
+          <div className="w-20 h-20 bg-emerald/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <User className="w-10 h-10 text-emerald" />
           </div>
+          <h2 className="text-3xl font-black text-[#003d4d] uppercase tracking-tighter">Seja Bem-vindo!</h2>
+          <p className="text-gray-400 font-bold">Conte um pouco sobre você (opcional)</p>
+        </div>
+
+        <form onSubmit={handleUpdateProfile} className="space-y-4">
+          <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Seu Nome</label>
+            <input type="text" value={authEmail} onChange={e => setAuthEmail(e.target.value)} placeholder="NOME COMPLETO" className="w-full bg-gray-50 p-6 rounded-2xl font-black text-xl outline-none focus:ring-4 ring-emerald/20 transition-all" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Cidade</label>
+            <input type="text" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="SUA CIDADE" className="w-full bg-gray-50 p-6 rounded-2xl font-black text-xl outline-none focus:ring-4 ring-emerald/20 transition-all" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Telefone</label>
+            <input type="text" value={authPassword} onChange={e => setAuthPassword(e.target.value)} placeholder="(00) 00000-0000" className="w-full bg-gray-50 p-6 rounded-2xl font-black text-xl outline-none focus:ring-4 ring-emerald/20 transition-all" />
+          </div>
+
+          <button type="submit" className="w-full bg-emerald text-white py-6 rounded-2xl font-black uppercase text-xl shadow-lg active:scale-95 transition-all mt-4">
+            Salvar e Entrar
+          </button>
+          <button type="button" onClick={() => fetchProfile(session.user.id)} className="w-full text-gray-300 font-black uppercase tracking-widest text-[10px] pt-2">
+            Pular agora
+          </button>
         </form>
       </div>
     </div>

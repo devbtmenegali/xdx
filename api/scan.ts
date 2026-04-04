@@ -27,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       contents: [{
         role: "user",
         parts: [
-          { text: "Você é um especialista em leitura de etiquetas de supermercado. Extraia o NOME do produto e o PREÇO unitário da imagem. Retorne APENAS um JSON puro, no formato: {\"name\": \"string\", \"price\": number}. Se não conseguir ler com clareza, identifique o melhor possível." },
+          { text: "Você é um especialista em OCR de etiquetas de preço. Sua tarefa é:\n1. Identificar o NOME do produto (apenas as letras/descrição).\n2. Identificar o PREÇO UNITÁRIO (apenas o valor numérico).\nRetorne APENAS um JSON puro, sem explicações: {\"name\": \"NOME DO PRODUTO\", \"price\": 0.00}. Se houver vários preços, use o preço principal de venda." },
           { inlineData: { mimeType: "image/jpeg", data: imageData } }
         ]
       }]

@@ -205,6 +205,11 @@ function AppContent() {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (authMode !== 'reset' && authPassword.length < 6) {
+      setMessage({ type: 'error', text: 'A senha deve ter pelo menos 6 caracteres.' });
+      return;
+    }
+    
     setAuthLoading(true);
     setMessage(null);
     try {
@@ -212,10 +217,21 @@ function AppContent() {
         const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
         if (error) throw error;
       } else if (authMode === 'signup') {
-        const { error } = await supabase.auth.signUp({ email: authEmail, password: authPassword });
+        const { data, error } = await supabase.auth.signUp({ 
+          email: authEmail, 
+          password: authPassword,
+          options: {
+            data: { email: authEmail } // Salva no metadado para o trigger se puder
+          }
+        });
         if (error) throw error;
-        setMessage({ type: 'success', text: 'Conta criada! Entre agora.' });
-        setAuthMode('login');
+        
+        if (data.session) {
+          setMessage({ type: 'success', text: 'Bem-vindo! Entrando...' });
+        } else {
+          setMessage({ type: 'success', text: 'Conta criada! Verifique seu e-mail ou tente entrar.' });
+          setAuthMode('login');
+        }
       } else if (authMode === 'reset') {
         const { error } = await supabase.auth.resetPasswordForEmail(authEmail, {
           redirectTo: window.location.origin
@@ -230,7 +246,11 @@ function AppContent() {
         setAuthMode('login');
       }
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.message === 'Email not confirmed' ? 'Confirme seu e-mail ou desative a verificação no Supabase.' : err.message });
+      let msg = err.message;
+      if (msg === 'Email not confirmed') msg = 'E-mail não confirmado. Verifique sua caixa de entrada ou desative a verificação no Supabase.';
+      if (msg === 'User already registered') msg = 'Este e-mail já está cadastrado. Tente fazer login.';
+      if (msg === 'Invalid login credentials') msg = 'E-mail ou senha incorretos.';
+      setMessage({ type: 'error', text: msg });
     } finally {
       setAuthLoading(false);
     }

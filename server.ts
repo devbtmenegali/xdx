@@ -4,7 +4,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 dotenv.config();
 
@@ -17,62 +16,55 @@ async function startServer() {
 
   app.use(express.json({ limit: '50mb' }));
 
-  app.post("/api/scan", async (req: any, res: any) => {
+  // API de Escaneamento (Servidor) - Mantido para proteger a chave Gemini
+  app.post("/api/scan", async (req, res) => {
     try {
       const { image } = req.body;
-      const apiKey = process.env.GEMINI_API_KEY;
+      const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
 
       if (!apiKey) {
-        return res.status(500).json({ error: "GEMINI_API_KEY não configurada no .env" });
+        console.error("API Key missing on server");
+        return res.status(500).json({ error: "Chave de API não configurada no servidor." });
       }
 
-      const genAI = new GoogleGenerativeAI(apiKey);
-      // 2.0-flash é o padrão de alta performance em 2026
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-
+      const ai = new GoogleGenAI({ apiKey });
+      const modelName = "gemini-3-flash-preview"; 
       const imageData = image.includes(",") ? image.split(",")[1] : image;
 
-      const result = await model.generateContent({
-        contents: [{
-          role: "user",
-          parts: [
-            { text: "Você é um especialista em OCR de etiquetas de preço. Sua tarefa é:\n1. Identificar o NOME do produto (apenas as letras/descrição).\n2. Identificar o PREÇO UNITÁRIO (apenas o valor numérico).\nRetorne APENAS um JSON puro, sem explicações: {\"name\": \"NOME DO PRODUTO\", \"price\": 0.00}. Se houver vários preços, use o preço principal de venda." },
-            { inlineData: { mimeType: "image/jpeg", data: imageData } }
-          ]
-        }]
+      console.log("Servidor iniciando scan com modelo:", modelName);
+
+      const result = await ai.models.generateContent({
+        model: modelName,
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { text: "Você é um especialista em leitura de etiquetas de supermercado e preços. Extraia o NOME do produto e o PREÇO unitário. Retorne APENAS um JSON: {\"name\": \"string\", \"price\": number}. Se não ler, use {\"name\": \"\", \"price\": 0}." },
+              { inlineData: { data: imageData, mimeType: "image/jpeg" } }
+            ]
+          }
+        ],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING },
+              price: { type: Type.NUMBER }
+            },
+            required: ["name", "price"]
+          }
+        }
       });
 
-      const response = await result.response;
-      const text = response.text();
-      console.log("Resultado IA (2026):", text);
-
-      // LIMPEZA DE JSON
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      const jsonStr = jsonMatch ? jsonMatch[0] : text;
-      
-      let parsed;
-      try {
-        parsed = JSON.parse(jsonStr);
-      } catch (e) {
-        const pMatch = text.match(/price["\s:]+["']?([\d,.]+)/i);
-        const nMatch = text.match(/name["\s:]+["']?([^"'\n},]+)["']?/i);
-        parsed = {
-          name: nMatch?.[1]?.trim() ?? "Produto",
-          price: pMatch?.[1] ?? 0
-        };
-      }
-
-      if (parsed.price) {
-        let p = parsed.price.toString().replace(/R\$\s?/, "").replace(/\s/g, "").replace(",", ".");
-        parsed.price = parseFloat(p) || 0;
-      }
-      
-      res.status(200).json(parsed);
+      const text = result.text || "{}";
+      console.log("Resultado da IA:", text);
+      res.json(JSON.parse(text));
     } catch (error: any) {
-      console.error("Erro no servidor local:", error);
+      console.error("Erro no scan do servidor:", error);
       res.status(500).json({ 
-        error: "Erro no scanner local (2026)",
-        details: error.message || "Erro desconhecido" 
+        error: "Erro no processamento da IA",
+        details: error.message || "Erro desconhecido"
       });
     }
   });

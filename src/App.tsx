@@ -438,10 +438,11 @@ function AppContent() {
         setQuantity(1);
       } else {
         setScannedProduct({ name: '', price: 0 });
-        setError('Não foi possível identificar automaticamente.');
+        const errorMsg = result.error || result.details || 'Falha na leitura';
+        setError(`ERRO DO SERVIDOR: ${errorMsg}`);
       }
     } catch (e: any) {
-      setError('Erro de conexão. Verifique seu 4G.');
+      setError(`FALHA DE CONEXÃO: ${e.message}`);
       setScannedProduct({ name: '', price: 0 });
     } finally {
       setIsScanning(false);

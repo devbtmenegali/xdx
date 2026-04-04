@@ -18,7 +18,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const modelName = "gemini-1.5-flash"; 
     const imageData = image.includes(",") ? image.split(",")[1] : image;
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`;
     
     const response = await fetch(apiUrl, {
       method: 'POST',
@@ -40,7 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       throw new Error(data.error?.message || "Erro na API do Google");
     }
 
-    let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
     
     // LIMPEZA ULTRA-ROBUSTA
     const jsonMatch = text.match(/\{[\s\S]*\}/);

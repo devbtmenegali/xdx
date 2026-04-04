@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -8,40 +8,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const { image } = req.body;
-    const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      return res.status(500).json({ error: "Chave de API não configurada." });
+      return res.status(500).json({ 
+        error: "API Key não configurada no Vercel",
+        details: "Verifique as Settings > Environment Variables"
+      });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    const genAI = new GoogleGenerativeAI(apiKey);
+    // Em 2026, o 2.0-flash é o equilíbrio perfeito entre velocidade e precisão
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
     const imageData = image.includes(",") ? image.split(",")[1] : image;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-1.5-pro",
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: "Você é um especialista em leitura de etiquetas de supermercado. Extraia o NOME do produto e o PREÇO unitário da imagem. Retorne APENAS um JSON puro, sem markdown, no formato: {\"name\": \"string\", \"price\": number}. Se não conseguir ler com clareza, identifique o melhor possível." },
-            { inlineData: { data: imageData, mimeType: "image/jpeg" } }
-          ]
-        }
-      ]
+    const result = await model.generateContent({
+      contents: [{
+        role: "user",
+        parts: [
+          { text: "Você é um especialista em leitura de etiquetas de supermercado. Extraia o NOME do produto e o PREÇO unitário da imagem. Retorne APENAS um JSON puro, no formato: {\"name\": \"string\", \"price\": number}. Se não conseguir ler com clareza, identifique o melhor possível." },
+          { inlineData: { mimeType: "image/jpeg", data: imageData } }
+        ]
+      }]
     });
 
-    let text = response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-    text = text.replace(/```json/g, "").replace(/```/g, "").replace(/^[^{\[]+/, "").replace(/[^}\]]+$/, "").trim();
+    const response = await result.response;
+    const text = response.text();
+    
+    // LIMPEZA DE JSON
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const jsonStr = jsonMatch ? jsonMatch[0] : text;
     
     let parsed;
     try {
-      parsed = JSON.parse(text);
+      parsed = JSON.parse(jsonStr);
     } catch (e) {
-      const priceMatch = text.match(/price["\s:]+([\d,.]+)/);
-      const nameMatch = text.match(/name["\s:]+"([^"]+)"/);
+      const pMatch = text.match(/price["\s:]+["']?([\d,.]+)/i);
+      const nMatch = text.match(/name["\s:]+["']?([^"'\n},]+)["']?/i);
       parsed = {
-        name: nameMatch ? nameMatch[1] : "Item",
-        price: priceMatch ? priceMatch[1] : 0
+        name: nMatch?.[1]?.trim() ?? "Produto",
+        price: pMatch?.[1] ?? 0
       };
     }
 
@@ -54,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error: any) {
     console.error("Erro no scanner (Vercel):", error);
     res.status(500).json({ 
-      error: "Erro no processamento da IA",
+      error: "Erro no processamento da IA (Versão 2026)",
       details: error.message || "Erro desconhecido"
     });
   }

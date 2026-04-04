@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 dotenv.config();
 
@@ -16,67 +17,62 @@ async function startServer() {
 
   app.use(express.json({ limit: '50mb' }));
 
-  app.post("/api/scan", async (req, res) => {
+  app.post("/api/scan", async (req: any, res: any) => {
     try {
       const { image } = req.body;
-      const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+      const apiKey = process.env.GEMINI_API_KEY;
 
       if (!apiKey) {
-        console.error("API Key missing on server");
-        return res.status(500).json({ error: "Chave de API não configurada no servidor." });
+        return res.status(500).json({ error: "GEMINI_API_KEY não configurada no .env" });
       }
 
-      const ai = new GoogleGenAI({ apiKey });
-      const modelName = "gemini-1.5-pro"; 
+      const genAI = new GoogleGenerativeAI(apiKey);
+      // 2.0-flash é o padrão de alta performance em 2026
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
       const imageData = image.includes(",") ? image.split(",")[1] : image;
 
-      console.log("Servidor iniciando scan com modelo:", modelName);
-
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { text: "Você é um especialista em leitura de etiquetas de supermercado. Extraia o NOME do produto e o PREÇO unitário da imagem. Retorne APENAS um JSON puro, sem markdown, no formato: {\"name\": \"string\", \"price\": number}. Se não conseguir ler, tente o seu melhor para identificar o produto e o preço." },
-              { inlineData: { data: imageData, mimeType: "image/jpeg" } }
-            ]
-          }
-        ]
+      const result = await model.generateContent({
+        contents: [{
+          role: "user",
+          parts: [
+            { text: "Você é um especialista em leitura de etiquetas de supermercado. Extraia o NOME do produto e o PREÇO unitário da imagem. Retorne APENAS um JSON puro, no formato: {\"name\": \"string\", \"price\": number}. Se não conseguir ler com clareza, identifique o melhor possível." },
+            { inlineData: { mimeType: "image/jpeg", data: imageData } }
+          ]
+        }]
       });
 
-      let text = response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-      text = text.replace(/```json/g, "").replace(/```/g, "").replace(/^[^{\[]+/, "").replace(/[^}\]]+$/, "").trim();
-      
-      console.log("RAW AI Response:", text);
+      const response = await result.response;
+      const text = response.text();
+      console.log("Resultado IA (2026):", text);
+
+      // LIMPEZA DE JSON
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : text;
       
       let parsed;
       try {
-        parsed = JSON.parse(text);
+        parsed = JSON.parse(jsonStr);
       } catch (e) {
-        console.error("JSON Parse Error:", e, "Text:", text);
-        // Tenta extração manual básica se o JSON falhar
-        const priceMatch = text.match(/price["\s:]+([\d,.]+)/);
-        const nameMatch = text.match(/name["\s:]+"([^"]+)"/);
+        const pMatch = text.match(/price["\s:]+["']?([\d,.]+)/i);
+        const nMatch = text.match(/name["\s:]+["']?([^"'\n},]+)["']?/i);
         parsed = {
-          name: nameMatch ? nameMatch[1] : "Produto não identificado",
-          price: priceMatch ? priceMatch[1] : 0
+          name: nMatch?.[1]?.trim() ?? "Produto",
+          price: pMatch?.[1] ?? 0
         };
       }
 
-      // Garante que o preço seja número e trate vírgulas
       if (parsed.price) {
         let p = parsed.price.toString().replace(/R\$\s?/, "").replace(/\s/g, "").replace(",", ".");
         parsed.price = parseFloat(p) || 0;
       }
       
-      console.log("FINAL Parsed Result:", parsed);
-      res.json(parsed);
+      res.status(200).json(parsed);
     } catch (error: any) {
-      console.error("Erro no scan do servidor:", error);
+      console.error("Erro no servidor local:", error);
       res.status(500).json({ 
-        error: "Erro no processamento da IA",
-        details: error.message || "Erro desconhecido"
+        error: "Erro no scanner local (2026)",
+        details: error.message || "Erro desconhecido" 
       });
     }
   });

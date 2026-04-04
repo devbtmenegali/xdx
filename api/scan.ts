@@ -1,4 +1,3 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -11,26 +10,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
 
     if (!apiKey) {
-      return res.status(500).json({ error: "Chave de API não configurada." });
+      return res.status(500).json({ 
+        error: "API Key ausente na Vercel!",
+        details: "Vá em Vercel Dashboard > Project Settings > Environment Variables e adicione GEMINI_API_KEY."
+      });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    const modelName = "gemini-1.5-flash"; 
     const imageData = image.includes(",") ? image.split(",")[1] : image;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
-      contents: [
-        {
-          role: "user",
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+    
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
           parts: [
-            { text: "Você é um especialista em leitura de etiquetas de supermercado. Extraia o NOME do produto e o PREÇO unitário da imagem. Retorne APENAS um JSON puro, sem markdown, no formato: {\"name\": \"string\", \"price\": number}. Se não conseguir ler com clareza, identifique o melhor possível." },
-            { inlineData: { data: imageData, mimeType: "image/jpeg" } }
+            { text: "Extract: Product Name, Price. Return ONLY JSON: {\"name\": \"string\", \"price\": number}" },
+            { inlineData: { mimeType: "image/jpeg", data: imageData } }
           ]
-        }
-      ]
+        }],
+        generationConfig: { responseMimeType: "application/json" }
+      })
     });
 
-    let text = response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    const data: any = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || "Erro na API do Google");
+
+    let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
     text = text.replace(/```json/g, "").replace(/```/g, "").replace(/^[^{\[]+/, "").replace(/[^}\]]+$/, "").trim();
     
     let parsed;
@@ -40,7 +47,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const priceMatch = text.match(/price["\s:]+([\d,.]+)/);
       const nameMatch = text.match(/name["\s:]+"([^"]+)"/);
       parsed = {
-        name: nameMatch ? nameMatch[1] : "Item",
+        name: nameMatch ? nameMatch[1] : "Produto",
         price: priceMatch ? priceMatch[1] : 0
       };
     }

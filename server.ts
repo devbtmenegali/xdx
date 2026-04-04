@@ -16,62 +16,70 @@ async function startServer() {
 
   app.use(express.json({ limit: '50mb' }));
 
+  // API de Escaneamento (Servidor)
   app.post("/api/scan", async (req, res) => {
     try {
       const { image } = req.body;
       const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
 
       if (!apiKey) {
-        console.error("API Key missing on server");
-        return res.status(500).json({ error: "Chave de API não configurada no servidor." });
+        return res.status(500).json({ 
+          error: "API Key ausente!",
+          details: "Configure GEMINI_API_KEY no servidor."
+        });
       }
 
-      const ai = new GoogleGenAI({ apiKey });
       const modelName = "gemini-1.5-flash"; 
       const imageData = image.includes(",") ? image.split(",")[1] : image;
 
-      console.log("Servidor iniciando scan com modelo:", modelName);
+      console.log("Iniciando Scan via REST:", modelName);
 
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: [
-          {
-            role: "user",
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
             parts: [
-              { text: "Você é um especialista em leitura de etiquetas de supermercado. Extraia o NOME do produto e o PREÇO unitário da imagem. Retorne APENAS um JSON puro, sem markdown, no formato: {\"name\": \"string\", \"price\": number}. Se não conseguir ler, tente o seu melhor para identificar o produto e o preço." },
-              { inlineData: { data: imageData, mimeType: "image/jpeg" } }
+              { text: "Extract: Product Name, Price. Return ONLY JSON: {\"name\": \"string\", \"price\": number}" },
+              { inlineData: { mimeType: "image/jpeg", data: imageData } }
             ]
-          }
-        ]
+          }],
+          generationConfig: { responseMimeType: "application/json" }
+        })
       });
 
-      let text = response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-      text = text.replace(/```json/g, "").replace(/```/g, "").replace(/^[^{\[]+/, "").replace(/[^}\]]+$/, "").trim();
+      const data: any = await response.json();
       
-      console.log("RAW AI Response:", text);
+      if (!response.ok) {
+        throw new Error(data.error?.message || "Erro na API do Google");
+      }
+
+      let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+      // Limpeza de JSON
+      text = text.replace(/```json/g, "").replace(/```/g, "").replace(/^[^{\[]+/, "").replace(/[^}\]]+$/, "").trim();
       
       let parsed;
       try {
         parsed = JSON.parse(text);
       } catch (e) {
-        console.error("JSON Parse Error:", e, "Text:", text);
-        // Tenta extração manual básica se o JSON falhar
         const priceMatch = text.match(/price["\s:]+([\d,.]+)/);
         const nameMatch = text.match(/name["\s:]+"([^"]+)"/);
         parsed = {
-          name: nameMatch ? nameMatch[1] : "Produto não identificado",
+          name: nameMatch ? nameMatch[1] : "Produto",
           price: priceMatch ? priceMatch[1] : 0
         };
       }
 
-      // Garante que o preço seja número e trate vírgulas
       if (parsed.price) {
         let p = parsed.price.toString().replace(/R\$\s?/, "").replace(/\s/g, "").replace(",", ".");
         parsed.price = parseFloat(p) || 0;
       }
       
-      console.log("FINAL Parsed Result:", parsed);
+      console.log("Resultado Final:", parsed);
       res.json(parsed);
+
     } catch (error: any) {
       console.error("Erro no scan do servidor:", error);
       res.status(500).json({ 

@@ -145,7 +145,7 @@ function AppContent() {
       img.src = base64Str;
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 1600; // Equilíbrio entre peso e nitidez
+        const MAX_WIDTH = 1200; // Otimizado para OCR e Mobilidade
         let width = img.width;
         let height = img.height;
 
@@ -163,8 +163,18 @@ function AppContent() {
     });
   };
 
+  const [apiStatus, setApiStatus] = useState<{ok: boolean, msg: string} | null>(null);
+
   // --- INITIALIZATION ---
   useEffect(() => {
+    // Verifica saúde da API na Vercel/Local
+    fetch('/api/health')
+      .then(r => r.json())
+      .then(data => {
+        setApiStatus({ ok: data.hasKey, msg: data.message });
+      })
+      .catch(() => setApiStatus({ ok: false, msg: "Erro de conexão com o servidor" }));
+
     if (!supabase) {
       return;
     }
@@ -412,29 +422,32 @@ function AppContent() {
     
     try {
       const image = await compressImage(rawImage);
+      console.log("Enviando imagem para scan...", image.substring(0, 100) + "...");
+      
       const res = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image }),
       });
       
-      if (res.status === 504) throw new Error("Tempo esgotado no servidor. Tente novamente.");
       const result = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(result.error || result.details || "Erro desconhecido no servidor");
+      }
       
       setIsCameraOpen(false);
       setQuantity(1);
       
-      if (result && !result.error) {
+      if (result) {
         if (typeof result.price === 'string') {
           result.price = parseFloat(result.price.replace(',', '.')) || 0;
         }
         setScannedProduct(result);
-      } else {
-        setError(result?.error || result?.details || 'A IA não conseguiu ler os dados. Verifique a iluminação.');
-        setScannedProduct({ name: '', price: 0 });
       }
     } catch (e: any) {
-      setError(e.message || 'Erro no processamento');
+      console.error("Erro na captura:", e);
+      setError(`DEBUG: ${e.message}`);
       setScannedProduct({ name: '', price: 0 });
     } finally {
       setIsScanning(false);
@@ -535,7 +548,19 @@ function AppContent() {
   );
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-gray-900 pb-40">
+    <div className="min-h-screen bg-[#F8FAFC] pb-24 font-outfit">
+      {/* Banner de Status da API */}
+      {apiStatus && !apiStatus.ok && (
+        <div className="bg-red-600 text-white text-[10px] py-1 px-4 text-center animate-pulse">
+          ⚠️ {apiStatus.msg}
+        </div>
+      )}
+      {apiStatus && apiStatus.ok && (
+        <div className="bg-emerald-500 text-white text-[8px] py-0.5 px-4 text-center">
+          ✅ Scanner Online (Gemini Flash)
+        </div>
+      )}
+
       <header className="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-gray-100 p-4 pt-[calc(1rem+env(safe-area-inset-top))] flex justify-between items-center z-40">
         <div className="flex items-center gap-3">
           <XDXLogo className="w-10 h-10" />

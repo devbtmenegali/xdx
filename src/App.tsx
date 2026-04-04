@@ -201,10 +201,8 @@ function AppContent() {
 
   useEffect(() => {
     if (scannedProduct?.name) checkLastPrice(scannedProduct.name);
-    else setLastPriceInfo(null);
   }, [scannedProduct]);
 
-  // --- AUTH HANDLERS ---
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthLoading(true);
@@ -407,18 +405,18 @@ function AppContent() {
             </p>
           )}
 
-          <button type="submit" disabled={authLoading} className="w-full bg-emerald text-white py-6 rounded-2xl font-black uppercase text-xl shadow-xl active:scale-95 transition-all disabled:opacity-50">
-            {authLoading ? 'Processando...' : authMode === 'login' ? 'Entrar' : authMode === 'signup' ? 'Cadastrar' : authMode === 'reset' ? 'Enviar Link' : 'Salvar Senha'}
+          <button type="submit" disabled={authLoading} className="w-full bg-emerald text-white py-6 rounded-2xl font-black uppercase text-xl shadow-xl active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-3">
+            {authLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : (authMode === 'login' ? 'Entrar' : authMode === 'signup' ? 'Cadastrar' : 'Enviar Link')}
           </button>
 
-          <div className="flex flex-col gap-4 text-center">
+          <div className="flex flex-col gap-4 text-center pt-2">
             {authMode === 'login' && (
-              <button type="button" onClick={() => setAuthMode('reset')} className="text-emerald font-black uppercase tracking-widest text-[10px]">
+              <button type="button" onClick={() => setAuthMode('reset')} className="text-emerald font-black uppercase tracking-widest text-[12px]">
                 Esqueci minha senha
               </button>
             )}
-            <button type="button" onClick={() => setAuthMode((authMode === 'login' || authMode === 'reset-password') ? 'signup' : 'login')} className="text-gray-400 font-black uppercase tracking-widest text-[10px]">
-              {(authMode === 'login' || authMode === 'reset-password') ? 'Criar nova conta' : 'Voltar para Login'}
+            <button type="button" onClick={() => setAuthMode((authMode === 'login' || authMode === 'reset-password') ? 'signup' : 'login')} className="text-gray-400 font-black uppercase tracking-widest text-[12px]">
+              {(authMode === 'login' || authMode === 'reset-password') ? 'Ainda não tenho conta' : 'Voltar para Login'}
             </button>
           </div>
         </form>

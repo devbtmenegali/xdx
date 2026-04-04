@@ -410,20 +410,24 @@ function AppContent() {
       
       const width = video.videoWidth || 1280;
       const height = video.videoHeight || 720;
-      
-      canvas.width = 800;
-      canvas.height = (800 * height) / width;
+      if (width === 0 || height === 0) throw new Error("Câmera não estabilizou.");
+
+      // Reduzimos um pouco mais para máxima fluidez no celular
+      canvas.width = 640;
+      canvas.height = Math.round((640 * height) / width);
       
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       
-      const image = canvas.toDataURL('image/jpeg', 0.85);
+      const image = canvas.toDataURL('image/jpeg', 0.6); // Compressão maior
       setLastCapturedImage(image);
       
-      // Abre o modal IMEDIATAMENTE com estado de carregamento
       setScannedProduct({ name: 'Lendo etiqueta...', price: 0 });
       setIsCameraOpen(false);
+
+      // --- CHECKPOINT 1: Imagem Pronta ---
+      console.log("Checkpoint 1: Imagem preparada. Enviando...");
 
       const res = await fetch('/api/scan', {
         method: 'POST',
@@ -431,6 +435,9 @@ function AppContent() {
         body: JSON.stringify({ image }),
       });
       
+      // --- CHECKPOINT 2: Resposta recebida ---
+      console.log("Checkpoint 2: Resposta do servidor recebida.");
+
       const result = await res.json();
       
       if (res.ok && result) {

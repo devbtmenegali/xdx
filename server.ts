@@ -16,44 +16,36 @@ async function startServer() {
 
   app.use(express.json({ limit: '50mb' }));
 
-  // API de Escaneamento (Servidor)
-  app.post("/api/scan", async (req, res) => {
+  // SCANNER "TANQUE DE GUERRA" (RESTORED)
+  app.post("/api/scan", async (req: any, res: any) => {
     try {
       const { image } = req.body;
-      const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+      const apiKey = process.env.GEMINI_API_KEY;
 
       if (!apiKey) {
-        return res.status(500).json({ 
-          error: "API Key ausente!",
-          details: "Configure GEMINI_API_KEY no servidor."
-        });
+        return res.status(500).json({ error: "GEMINI_API_KEY não configurada no .env" });
       }
 
-      const modelName = "gemini-1.5-flash-latest"; 
-      const imageData = image.includes(",") ? image.split(",")[1] : image;
-      console.log("Iniciando Scan Última Geração (v1beta-latest):", modelName);
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-      
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: "Extract: Product Name, Price. Format ONLY JSON: {\"name\": \"string\", \"price\": number}" },
-              { inlineData: { mimeType: "image/jpeg", data: imageData } }
-            ]
-          }]
-        })
+      const imageData = image.includes(",") ? image.split(",")[1] : image;
+
+      const result = await model.generateContent({
+        contents: [{
+          role: "user",
+          parts: [
+            { text: "Você é um especialista em leitura de etiquetas de supermercado. Extraia o NOME do produto e o PREÇO unitário da imagem. Retorne APENAS um JSON puro, no formato: {\"name\": \"string\", \"price\": number}. Se não conseguir ler com clareza, identifique o melhor possível." },
+            { inlineData: { mimeType: "image/jpeg", data: imageData } }
+          ]
+        }]
       });
 
-      const data: any = await response.json();
-      if (!response.ok) throw new Error(data.error?.message || "Erro na API do Google");
+      const response = await result.response;
+      const text = response.text();
+      console.log("Resultado IA (Mestre):", text);
 
-      let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-      
-      // LIMPEZA ULTRA-ROBUSTA
+      // LIMPEZA DE JSON
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       const jsonStr = jsonMatch ? jsonMatch[0] : text;
       
@@ -75,12 +67,11 @@ async function startServer() {
       }
       
       res.status(200).json(parsed);
-
     } catch (error: any) {
-      console.error("Erro no scan do servidor:", error);
+      console.error("Erro no servidor local:", error);
       res.status(500).json({ 
-        error: "Erro no processamento da IA",
-        details: error.message || "Erro desconhecido"
+        error: "Erro no scanner local",
+        details: error.message || "Erro desconhecido" 
       });
     }
   });

@@ -1,3 +1,4 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -7,42 +8,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const { image } = req.body;
-    const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
       return res.status(500).json({ 
-        error: "API Key ausente na Vercel!",
-        details: "Vá em Vercel Dashboard > Project Settings > Environment Variables e adicione GEMINI_API_KEY."
+        error: "API Key não configurada no Vercel",
+        details: "Verifique as Settings > Environment Variables"
       });
     }
 
-    const modelName = "gemini-1.5-flash-latest"; 
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+
     const imageData = image.includes(",") ? image.split(",")[1] : image;
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-    
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: "Extract: Product Name, Price. Format ONLY JSON: {\"name\": \"string\", \"price\": number}" },
-            { inlineData: { mimeType: "image/jpeg", data: imageData } }
-          ]
-        }]
-      })
+
+    const result = await model.generateContent({
+      contents: [{
+        role: "user",
+        parts: [
+          { text: "Você é um especialista em leitura de etiquetas de supermercado. Extraia o NOME do produto e o PREÇO unitário da imagem. Retorne APENAS um JSON puro, no formato: {\"name\": \"string\", \"price\": number}. Se não conseguir ler com clareza, identifique o melhor possível." },
+          { inlineData: { mimeType: "image/jpeg", data: imageData } }
+        ]
+      }]
     });
 
-    const data: any = await response.json();
-    console.log("Raw Response from Google:", JSON.stringify(data));
+    const response = await result.response;
+    const text = response.text();
     
-    if (!response.ok) {
-      throw new Error(data.error?.message || "Erro na API do Google");
-    }
-
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-    
-    // LIMPEZA ULTRA-ROBUSTA
+    // LIMPEZA DE JSON
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     const jsonStr = jsonMatch ? jsonMatch[0] : text;
     
@@ -67,7 +60,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error: any) {
     console.error("Erro no scanner (Vercel):", error);
     res.status(500).json({ 
-      error: "Erro no processamento da IA",
+      error: "Erro no processamento da IA (Tanque de Guerra)",
       details: error.message || "Erro desconhecido"
     });
   }

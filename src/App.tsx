@@ -138,31 +138,6 @@ function AppContent() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // --- UTILS ---
-  const compressImage = (base64Str: string): Promise<string> => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.src = base64Str;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 1024;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > MAX_WIDTH) {
-          height *= MAX_WIDTH / width;
-          width = MAX_WIDTH;
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.7));
-      };
-    });
-  };
-
   // --- INITIALIZATION ---
   useEffect(() => {
     if (!supabase) {
@@ -399,28 +374,30 @@ function AppContent() {
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    canvas.width = 800;
-    canvas.height = (800 * video.videoHeight) / video.videoWidth;
+    
+    // Configura canvas para alta resolução capturando do feed da câmera
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const image = canvas.toDataURL('image/jpeg', 0.8);
+    
+    // Qualidade 0.9 para garantir nitidez para OCR
+    const image = canvas.toDataURL('image/jpeg', 0.9);
     setLastCapturedImage(image);
-    setIsScanning(true);
     
     try {
-      const compressed = await compressImage(image);
       const res = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: compressed }),
+        body: JSON.stringify({ image }),
       });
       const result = await res.json();
       setIsCameraOpen(false);
       setQuantity(1);
-      if (result) setScannedProduct(result);
+      if (result && !result.error) setScannedProduct(result);
       else {
-        setError('Não foi possível identificar o preço. Digite manualmente.');
+        setError('Não foi possível identificar. Tente novamente ou digite manualmente.');
         setScannedProduct({ name: '', price: 0 });
       }
     } catch (e: any) {

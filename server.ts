@@ -27,7 +27,7 @@ async function startServer() {
       }
 
       const ai = new GoogleGenAI({ apiKey });
-      const modelName = "gemini-1.5-flash"; 
+      const modelName = "gemini-1.5-pro"; 
       const imageData = image.includes(",") ? image.split(",")[1] : image;
 
       console.log("Servidor iniciando scan com modelo:", modelName);
@@ -38,26 +38,18 @@ async function startServer() {
           {
             role: "user",
             parts: [
-              { text: "Você é um especialista em leitura de etiquetas de supermercado e preços. Extraia o NOME do produto e o PREÇO unitário da imagem. Retorne APENAS um JSON: {\"name\": \"NOME DO PRODUTO\", \"price\": 0.00}. Se não conseguir ler com clareza, tente deduzir o nome e defina o preço como 0." },
+              { text: "Você é um especialista em leitura de etiquetas de supermercado. Extraia o NOME do produto e o PREÇO unitário da imagem. Retorne APENAS um JSON puro, sem markdown, no formato: {\"name\": \"string\", \"price\": number}. Se não conseguir ler, tente o seu melhor para identificar o produto e o preço." },
               { inlineData: { data: imageData, mimeType: "image/jpeg" } }
             ]
           }
-        ],
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              name: { type: Type.STRING },
-              price: { type: Type.NUMBER }
-            },
-            required: ["name", "price"]
-          }
-        }
+        ]
       });
 
-      const text = response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-      console.log("Resultado da IA:", text);
+      let text = response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+      // Limpa possível markdown da resposta
+      text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+      
+      console.log("Resultado da IA (Pro):", text);
       res.json(JSON.parse(text));
     } catch (error: any) {
       console.error("Erro no scan do servidor:", error);

@@ -18,30 +18,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const imageData = image.includes(",") ? image.split(",")[1] : image;
 
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-1.5-pro",
       contents: [
         {
           role: "user",
           parts: [
-            { text: "Você é um especialista em leitura de etiquetas de supermercado e preços. Extraia o NOME do produto e o PREÇO unitário da imagem. Retorne APENAS um JSON: {\"name\": \"NOME DO PRODUTO\", \"price\": 0.00}. Se não conseguir ler com clareza, tente deduzir o nome e defina o preço como 0." },
+            { text: "Você é um especialista em leitura de etiquetas de supermercado. Extraia o NOME do produto e o PREÇO unitário da imagem. Retorne APENAS um JSON puro, sem markdown, no formato: {\"name\": \"string\", \"price\": number}. Se não conseguir ler com clareza, identifique o melhor possível." },
             { inlineData: { data: imageData, mimeType: "image/jpeg" } }
           ]
         }
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            name: { type: Type.STRING },
-            price: { type: Type.NUMBER }
-          },
-          required: ["name", "price"]
-        }
-      }
+      ]
     });
 
-    const text = response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    let text = response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    
     res.status(200).json(JSON.parse(text));
   } catch (error: any) {
     console.error("Erro no scanner (Vercel):", error);

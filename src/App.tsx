@@ -138,6 +138,31 @@ function AppContent() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  // --- UTILS ---
+  const compressImage = (base64Str: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = base64Str;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1600; // Equilíbrio entre peso e nitidez
+        let width = img.width;
+        let height = img.height;
+
+        if (width > MAX_WIDTH) {
+          height *= MAX_WIDTH / width;
+          width = MAX_WIDTH;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      };
+    });
+  };
+
   // --- INITIALIZATION ---
   useEffect(() => {
     if (!supabase) {
@@ -375,28 +400,31 @@ function AppContent() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     
-    // Configura canvas para alta resolução capturando do feed da câmera
+    // Captura do vídeo em alta resolução do dispositivo
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     
-    // Qualidade 0.9 para garantir nitidez para OCR
-    const image = canvas.toDataURL('image/jpeg', 0.9);
-    setLastCapturedImage(image);
+    const rawImage = canvas.toDataURL('image/jpeg', 0.9);
+    setLastCapturedImage(rawImage);
     
     try {
+      const image = await compressImage(rawImage);
       const res = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image }),
       });
+      
+      if (res.status === 504) throw new Error("Tempo esgotado no servidor. Tente novamente.");
       const result = await res.json();
+      
       setIsCameraOpen(false);
       setQuantity(1);
+      
       if (result && !result.error) {
-        // Garantia extra no frontend para conversão de número
         if (typeof result.price === 'string') {
           result.price = parseFloat(result.price.replace(',', '.')) || 0;
         }

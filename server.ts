@@ -27,7 +27,7 @@ async function startServer() {
       }
 
       const ai = new GoogleGenAI({ apiKey });
-      const modelName = "gemini-1.5-pro"; 
+      const modelName = "gemini-1.5-flash"; 
       const imageData = image.includes(",") ? image.split(",")[1] : image;
 
       console.log("Servidor iniciando scan com modelo:", modelName);

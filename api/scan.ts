@@ -34,9 +34,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     const data: any = await response.json();
-    if (!response.ok) throw new Error(data.error?.message || "Erro na API do Google");
+    console.log("Raw Response from Google:", JSON.stringify(data));
+    
+    if (!response.ok) {
+      throw new Error(data.error?.message || "Erro na API do Google");
+    }
 
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
     
     // LIMPEZA ULTRA-ROBUSTA
     const jsonMatch = text.match(/\{[\s\S]*\}/);

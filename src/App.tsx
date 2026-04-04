@@ -438,11 +438,16 @@ function AppContent() {
         setQuantity(1);
       } else {
         setScannedProduct({ name: '', price: 0 });
-        const errorMsg = result.error || result.details || 'Falha na leitura';
-        setError(`ERRO DO SERVIDOR: ${errorMsg}`);
+        const mainErr = result.error || 'Erro';
+        const detailErr = result.details || 'Sem detalhes';
+        const fullErr = `ERRO: ${mainErr}\nDETALHES: ${detailErr}`;
+        setError(fullErr);
+        alert(fullErr); 
       }
     } catch (e: any) {
-      setError(`FALHA DE CONEXÃO: ${e.message}`);
+      const connErr = `FALHA DE CONEXÃO: ${e.message}`;
+      setError(connErr);
+      alert(connErr);
       setScannedProduct({ name: '', price: 0 });
     } finally {
       setIsScanning(false);
@@ -551,6 +556,14 @@ function AppContent() {
         </div>
       )}
 
+      {/* ERRO DO SCANNER (VISÍVEL) */}
+      {error && (
+        <div className="bg-red-500 text-white p-3 text-xs font-black text-center animate-pulse">
+          🚨 {error}
+          <button onClick={() => setError(null)} className="ml-2 underline">FECHAR</button>
+        </div>
+      )}
+
       <header className="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-gray-100 p-4 pt-[calc(1rem+env(safe-area-inset-top))] flex justify-between items-center z-40">
         <div className="flex items-center gap-3">
           <XDXLogo className="w-10 h-10" />
@@ -655,8 +668,14 @@ function AppContent() {
             <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }} className="bg-white w-full max-w-md rounded-[3rem] p-10 shadow-2xl border border-gray-100 space-y-8 overflow-y-auto max-h-[90vh]">
               <div className="flex justify-between items-start">
                 <h2 className="text-3xl font-black uppercase tracking-tighter text-[#003d4d]">Confirmar Item</h2>
-                <button onClick={() => setScannedProduct(null)} className="p-2"><X className="w-8 h-8 text-gray-300" /></button>
+                <button onClick={() => { setScannedProduct(null); setError(null); }} className="p-2"><X className="w-8 h-8 text-gray-300" /></button>
               </div>
+
+              {error && (
+                <div className="bg-red-50 border-2 border-red-200 p-4 rounded-2xl text-red-600 text-sm font-bold">
+                  ⚠️ {error}
+                </div>
+              )}
 
               {lastCapturedImage && <img src={lastCapturedImage} className="w-full aspect-video object-cover rounded-3xl border shadow-inner" />}
 

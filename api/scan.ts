@@ -16,9 +16,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const modelName = "gemini-1.5-flash"; 
+    const modelName = "gemini-1.5-flash-latest"; 
     const imageData = image.includes(",") ? image.split(",")[1] : image;
-    const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
     
     const response = await fetch(apiUrl, {
       method: 'POST',

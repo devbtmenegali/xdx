@@ -29,12 +29,12 @@ async function startServer() {
         });
       }
 
-      const modelName = "gemini-1.5-flash"; 
+      const modelName = "gemini-1.5-flash-latest"; 
       const imageData = image.includes(",") ? image.split(",")[1] : image;
-      const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`;
-      
-      console.log("Iniciando Scan Estável (v1):", modelName);
+      console.log("Iniciando Scan Última Geração (v1beta-latest):", modelName);
 
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+      
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

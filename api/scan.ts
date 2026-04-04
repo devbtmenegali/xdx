@@ -1,9 +1,8 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Type } from "@google/genai";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Méthode não permitida' });
+    return res.status(405).json({ error: 'Método não permitido' });
   }
 
   try {
@@ -11,38 +10,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
 
     if (!apiKey) {
-      console.error("API Key missing on Vercel");
-      return res.status(500).json({ error: "Chave de API não configurada no painel da Vercel." });
+      return res.status(500).json({ error: "Chave de API não configurada." });
     }
 
     const ai = new GoogleGenAI({ apiKey });
-    const modelName = "gemini-3-flash-preview"; 
     const imageData = image.includes(",") ? image.split(",")[1] : image;
 
-    console.log("Iniciando scan na Vercel com modelo:", modelName);
-
     const result = await ai.models.generateContent({
-      model: modelName,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: "Você é um especialista em leitura de etiquetas de supermercado e preços. Extraia o NOME do produto e o PREÇO unitário. Retorne APENAS um JSON: {\"name\": \"string\", \"price\": number}. Se não ler, use {\"name\": \"\", \"price\": 0}." },
-            { inlineData: { data: imageData, mimeType: "image/jpeg" } }
-          ]
-        }
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            name: { type: Type.STRING },
-            price: { type: Type.NUMBER }
-          },
-          required: ["name", "price"]
-        }
-      }
+      model: "gemini-1.5-flash",
+      contents: [{
+        role: "user",
+        parts: [
+          { text: "Extract product name and unit price from this supermarket tag. Return ONLY JSON: {\"name\": \"string\", \"price\": number}. If unreadable, use empty name and 0 price." },
+          { inlineData: { data: imageData, mimeType: "image/jpeg" } }
+        ]
+      }],
+      config: { responseMimeType: "application/json" }
     });
 
     const text = result.text || "{}";

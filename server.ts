@@ -29,11 +29,8 @@ async function startServer() {
         });
       }
 
-      const modelName = "gemini-1.5-flash"; 
+      const modelName = "gemini-1.5-pro"; 
       const imageData = image.includes(",") ? image.split(",")[1] : image;
-
-      console.log("Iniciando Scan via REST:", modelName);
-
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
       
       const response = await fetch(apiUrl, {
@@ -42,43 +39,25 @@ async function startServer() {
         body: JSON.stringify({
           contents: [{
             parts: [
-              { text: "Extract: Product Name, Price. Return ONLY JSON: {\"name\": \"string\", \"price\": number}" },
+              { text: "Você é um especialista em ler etiquetas de mercado. Extraia o NOME do produto e o PREÇO unitário da imagem. Retorne APENAS um JSON no formato: {\"name\": \"string\", \"price\": number}." },
               { inlineData: { mimeType: "image/jpeg", data: imageData } }
             ]
-          }],
-          generationConfig: { responseMimeType: "application/json" }
+          }]
         })
       });
 
       const data: any = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error?.message || "Erro na API do Google");
-      }
+      if (!response.ok) throw new Error(data.error?.message || "Erro na API do Google");
 
-      let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-      // Limpeza de JSON
-      text = text.replace(/```json/g, "").replace(/```/g, "").replace(/^[^{\[]+/, "").replace(/[^}\]]+$/, "").trim();
-      
-      let parsed;
-      try {
-        parsed = JSON.parse(text);
-      } catch (e) {
-        const priceMatch = text.match(/price["\s:]+([\d,.]+)/);
-        const nameMatch = text.match(/name["\s:]+"([^"]+)"/);
-        parsed = {
-          name: nameMatch ? nameMatch[1] : "Produto",
-          price: priceMatch ? priceMatch[1] : 0
-        };
-      }
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+      const jsonStr = text.replace(/```json/g, "").replace(/```/g, "").trim();
+      const parsed = JSON.parse(jsonStr);
 
-      if (parsed.price) {
-        let p = parsed.price.toString().replace(/R\$\s?/, "").replace(/\s/g, "").replace(",", ".");
-        parsed.price = parseFloat(p) || 0;
+      if (parsed.price && typeof parsed.price === 'string') {
+        parsed.price = parseFloat(parsed.price.replace(",", ".")) || 0;
       }
       
-      console.log("Resultado Final:", parsed);
-      res.json(parsed);
+      res.status(200).json(parsed);
 
     } catch (error: any) {
       console.error("Erro no scan do servidor:", error);

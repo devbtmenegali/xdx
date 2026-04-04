@@ -164,17 +164,13 @@ function AppContent() {
   };
 
   const [apiStatus, setApiStatus] = useState<{ok: boolean, msg: string} | null>(null);
-  const [scanProgress, setScanProgress] = useState<string>("");
 
   // --- INITIALIZATION ---
   useEffect(() => {
-    // Verifica saúde da API na Vercel/Local
     fetch('/api/health')
       .then(r => r.json())
-      .then(data => {
-        setApiStatus({ ok: data.hasKey, msg: data.message });
-      })
-      .catch(() => setApiStatus({ ok: false, msg: "Erro de conexão com o servidor" }));
+      .then(data => setApiStatus({ ok: data.hasKey, msg: data.message }))
+      .catch(() => {});
 
     if (!supabase) {
       return;
@@ -411,50 +407,35 @@ function AppContent() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     
-    // Captura do vídeo em alta resolução do dispositivo
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    // Captura estável em 800px (Suficiente para OCR e leve para upload)
+    canvas.width = 800;
+    canvas.height = (800 * video.videoHeight) / video.videoWidth;
+    
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     
-    const rawImage = canvas.toDataURL('image/jpeg', 0.9);
-    setLastCapturedImage(rawImage);
+    const image = canvas.toDataURL('image/jpeg', 0.85);
+    setLastCapturedImage(image);
     
     try {
-      setScanProgress("1. Comprimindo imagem...");
-      const image = await compressImage(rawImage);
-      
-      setScanProgress("2. Enviando para o Google...");
       const res = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image }),
       });
       
-      setScanProgress(`3. Resposta recebida (Status: ${res.status})`);
       const result = await res.json();
       
-      if (!res.ok) {
-        throw new Error(`Servidor: ${res.status} - ${result.error || result.details || "Erro"}`);
-      }
-      
-      setScanProgress("4. Processando dados...");
-      setIsCameraOpen(false);
-      setQuantity(1);
-      
-      if (result) {
-        if (typeof result.price === 'string') {
-          result.price = parseFloat(result.price.replace(',', '.')) || 0;
-        }
+      if (res.ok && result) {
+        setIsCameraOpen(false);
+        setQuantity(1);
         setScannedProduct(result);
-        setScanProgress("");
+      } else {
+        setError('Não foi possível identificar. Digite manualmente.');
       }
     } catch (e: any) {
-      console.error("Erro na captura:", e);
-      setError(`CAUSA DA FALHA: ${e.message}`);
-      setScanProgress("❌ Falhou");
-      setScannedProduct({ name: '', price: 0 });
+      setError('Erro na conexão. Tente novamente.');
     } finally {
       setIsScanning(false);
     }
@@ -555,22 +536,10 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-24 font-outfit">
-      {/* Banner de Status da API */}
+      {/* Barra de Status da API */}
       {apiStatus && !apiStatus.ok && (
-        <div className="bg-red-600 text-white text-[10px] py-1 px-4 text-center animate-pulse">
+        <div className="bg-red-600 text-white text-[10px] py-1 px-4 text-center">
           ⚠️ {apiStatus.msg}
-        </div>
-      )}
-      {apiStatus && apiStatus.ok && (
-        <div className="bg-emerald-500 text-white text-[8px] py-0.5 px-4 text-center">
-          ✅ Scanner Online (Gemini Flash)
-        </div>
-      )}
-
-      {/* Barra de Progresso do Scan */}
-      {isScanning && scanProgress && (
-        <div className="fixed top-24 left-4 right-4 bg-blue-600 text-white text-[10px] py-2 px-4 rounded-full text-center shadow-lg z-50 animate-bounce">
-          📡 {scanProgress}
         </div>
       )}
 

@@ -59,12 +59,11 @@ async function startServer() {
       try {
         parsed = JSON.parse(jsonStr);
       } catch (e) {
-        console.warn("JSON Fail, trying manual extraction...");
-        const pMatch = text.match(/price["\s:]+([\d,.]+)/i);
-        const nMatch = text.match(/name["\s:]+["']?([^"'\n}]+)["']?/i);
+        const pMatch = text.match(/price["\s:]+["']?([\d,.]+)/i);
+        const nMatch = text.match(/name["\s:]+["']?([^"'\n},]+)["']?/i);
         parsed = {
-          name: nMatch ? nMatch[1].trim() : "Produto",
-          price: pMatch ? pMatch[1] : 0
+          name: nMatch?.[1]?.trim() ?? "Produto",
+          price: pMatch?.[1] ?? 0
         };
       }
 

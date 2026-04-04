@@ -36,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const data: any = await response.json();
     if (!response.ok) throw new Error(data.error?.message || "Erro na API do Google");
 
-    let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
     
     // LIMPEZA ULTRA-ROBUSTA
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -46,11 +46,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       parsed = JSON.parse(jsonStr);
     } catch (e) {
-      const pMatch = text.match(/price["\s:]+([\d,.]+)/i);
-      const nMatch = text.match(/name["\s:]+["']?([^"'\n}]+)["']?/i);
+      const pMatch = text.match(/price["\s:]+["']?([\d,.]+)/i);
+      const nMatch = text.match(/name["\s:]+["']?([^"'\n},]+)["']?/i);
       parsed = {
-        name: nMatch ? nMatch[1].trim() : "Produto",
-        price: pMatch ? pMatch[1] : 0
+        name: nMatch?.[1]?.trim() ?? "Produto",
+        price: pMatch?.[1] ?? 0
       };
     }
 

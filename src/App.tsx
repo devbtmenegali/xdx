@@ -164,6 +164,7 @@ function AppContent() {
   };
 
   const [apiStatus, setApiStatus] = useState<{ok: boolean, msg: string} | null>(null);
+  const [scanProgress, setScanProgress] = useState<string>("");
 
   // --- INITIALIZATION ---
   useEffect(() => {
@@ -421,21 +422,24 @@ function AppContent() {
     setLastCapturedImage(rawImage);
     
     try {
+      setScanProgress("1. Comprimindo imagem...");
       const image = await compressImage(rawImage);
-      console.log("Enviando imagem para scan...", image.substring(0, 100) + "...");
       
+      setScanProgress("2. Enviando para o Google...");
       const res = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image }),
       });
       
+      setScanProgress(`3. Resposta recebida (Status: ${res.status})`);
       const result = await res.json();
       
       if (!res.ok) {
-        throw new Error(result.error || result.details || "Erro desconhecido no servidor");
+        throw new Error(`Servidor: ${res.status} - ${result.error || result.details || "Erro"}`);
       }
       
+      setScanProgress("4. Processando dados...");
       setIsCameraOpen(false);
       setQuantity(1);
       
@@ -444,10 +448,12 @@ function AppContent() {
           result.price = parseFloat(result.price.replace(',', '.')) || 0;
         }
         setScannedProduct(result);
+        setScanProgress("");
       }
     } catch (e: any) {
       console.error("Erro na captura:", e);
-      setError(`DEBUG: ${e.message}`);
+      setError(`CAUSA DA FALHA: ${e.message}`);
+      setScanProgress("❌ Falhou");
       setScannedProduct({ name: '', price: 0 });
     } finally {
       setIsScanning(false);
@@ -558,6 +564,13 @@ function AppContent() {
       {apiStatus && apiStatus.ok && (
         <div className="bg-emerald-500 text-white text-[8px] py-0.5 px-4 text-center">
           ✅ Scanner Online (Gemini Flash)
+        </div>
+      )}
+
+      {/* Barra de Progresso do Scan */}
+      {isScanning && scanProgress && (
+        <div className="fixed top-24 left-4 right-4 bg-blue-600 text-white text-[10px] py-2 px-4 rounded-full text-center shadow-lg z-50 animate-bounce">
+          📡 {scanProgress}
         </div>
       )}
 

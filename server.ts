@@ -46,11 +46,32 @@ async function startServer() {
       });
 
       let text = response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-      // Limpa possível markdown da resposta
-      text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+      text = text.replace(/```json/g, "").replace(/```/g, "").replace(/^[^{\[]+/, "").replace(/[^}\]]+$/, "").trim();
       
-      console.log("Resultado da IA (Pro):", text);
-      res.json(JSON.parse(text));
+      console.log("RAW AI Response:", text);
+      
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch (e) {
+        console.error("JSON Parse Error:", e, "Text:", text);
+        // Tenta extração manual básica se o JSON falhar
+        const priceMatch = text.match(/price["\s:]+([\d,.]+)/);
+        const nameMatch = text.match(/name["\s:]+"([^"]+)"/);
+        parsed = {
+          name: nameMatch ? nameMatch[1] : "Produto não identificado",
+          price: priceMatch ? priceMatch[1] : 0
+        };
+      }
+
+      // Garante que o preço seja número e trate vírgulas
+      if (parsed.price) {
+        let p = parsed.price.toString().replace(/R\$\s?/, "").replace(/\s/g, "").replace(",", ".");
+        parsed.price = parseFloat(p) || 0;
+      }
+      
+      console.log("FINAL Parsed Result:", parsed);
+      res.json(parsed);
     } catch (error: any) {
       console.error("Erro no scan do servidor:", error);
       res.status(500).json({ 

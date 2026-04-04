@@ -31,9 +31,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     let text = response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-    text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    text = text.replace(/```json/g, "").replace(/```/g, "").replace(/^[^{\[]+/, "").replace(/[^}\]]+$/, "").trim();
     
-    res.status(200).json(JSON.parse(text));
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch (e) {
+      const priceMatch = text.match(/price["\s:]+([\d,.]+)/);
+      const nameMatch = text.match(/name["\s:]+"([^"]+)"/);
+      parsed = {
+        name: nameMatch ? nameMatch[1] : "Item",
+        price: priceMatch ? priceMatch[1] : 0
+      };
+    }
+
+    if (parsed.price) {
+      let p = parsed.price.toString().replace(/R\$\s?/, "").replace(/\s/g, "").replace(",", ".");
+      parsed.price = parseFloat(p) || 0;
+    }
+    
+    res.status(200).json(parsed);
   } catch (error: any) {
     console.error("Erro no scanner (Vercel):", error);
     res.status(500).json({ 

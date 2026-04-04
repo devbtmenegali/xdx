@@ -395,9 +395,14 @@ function AppContent() {
       const result = await res.json();
       setIsCameraOpen(false);
       setQuantity(1);
-      if (result && !result.error) setScannedProduct(result);
-      else {
-        setError('Não foi possível identificar. Tente novamente ou digite manualmente.');
+      if (result && !result.error) {
+        // Garantia extra no frontend para conversão de número
+        if (typeof result.price === 'string') {
+          result.price = parseFloat(result.price.replace(',', '.')) || 0;
+        }
+        setScannedProduct(result);
+      } else {
+        setError(result?.error || result?.details || 'A IA não conseguiu ler os dados. Verifique a iluminação.');
         setScannedProduct({ name: '', price: 0 });
       }
     } catch (e: any) {

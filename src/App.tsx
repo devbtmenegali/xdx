@@ -4,7 +4,7 @@
  */
 
 import React, { Component, useState, useRef, useEffect } from 'react';
-import { Camera, Plus, Trash2, ShoppingCart, Loader2, X, Check, Image as ImageIcon, Zap, ZapOff, Calculator, LogOut, BarChart3 } from 'lucide-react';
+import { Camera, Plus, Trash2, ShoppingCart, Loader2, X, Check, Image as ImageIcon, Zap, ZapOff, Calculator, LogOut, BarChart3, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { scanPriceTag, ProductInfo } from './services/gemini';
 import { createClient } from '@supabase/supabase-js';
@@ -145,7 +145,12 @@ function AppContent() {
     }
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session) fetchProfile(session.user.id);
+      if (session) {
+        fetchProfile(session.user.id);
+      } else {
+        setProfile(null);
+        setItems([]);
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -174,6 +179,30 @@ function AppContent() {
       if (document.head.contains(style)) document.head.removeChild(style);
     };
   }, []);
+
+  useEffect(() => {
+    // Retry fetching profile if missing (helps with anonymous race conditions)
+    let intervalId: any;
+    if (session && !profile && !authLoading) {
+      let retries = 0;
+      intervalId = setInterval(async () => {
+        if (retries >= 3) {
+          clearInterval(intervalId);
+          // Auto-create profile if trigger fails
+          const { error } = await supabase.from('profiles').upsert({
+            id: session.user.id,
+            email: session.user.email,
+            role: 'customer'
+          });
+          if (!error) fetchProfile(session.user.id);
+          return;
+        }
+        fetchProfile(session.user.id);
+        retries++;
+      }, 1000);
+    }
+    return () => clearInterval(intervalId);
+  }, [session, profile, authLoading]);
 
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
@@ -476,27 +505,27 @@ function AppContent() {
             <User className="w-10 h-10 text-emerald" />
           </div>
           <h2 className="text-3xl font-black text-[#003d4d] uppercase tracking-tighter">Seja Bem-vindo!</h2>
-          <p className="text-gray-400 font-bold">Conte um pouco sobre você (opcional)</p>
+          <p className="text-gray-400 font-bold text-lg">Conte um pouco sobre você (opcional)</p>
         </div>
 
         <form onSubmit={handleUpdateProfile} className="space-y-4">
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Seu Nome</label>
+          <div className="space-y-2">
+            <label className="text-[12px] font-black uppercase text-gray-400 ml-2 tracking-widest">Seu Nome</label>
             <input type="text" value={authEmail} onChange={e => setAuthEmail(e.target.value)} placeholder="NOME COMPLETO" className="w-full bg-gray-50 p-6 rounded-2xl font-black text-xl outline-none focus:ring-4 ring-emerald/20 transition-all" />
           </div>
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Cidade</label>
+          <div className="space-y-2">
+            <label className="text-[12px] font-black uppercase text-gray-400 ml-2 tracking-widest">Cidade</label>
             <input type="text" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="SUA CIDADE" className="w-full bg-gray-50 p-6 rounded-2xl font-black text-xl outline-none focus:ring-4 ring-emerald/20 transition-all" />
           </div>
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Telefone</label>
+          <div className="space-y-2">
+            <label className="text-[12px] font-black uppercase text-gray-400 ml-2 tracking-widest">Telefone</label>
             <input type="text" value={authPassword} onChange={e => setAuthPassword(e.target.value)} placeholder="(00) 00000-0000" className="w-full bg-gray-50 p-6 rounded-2xl font-black text-xl outline-none focus:ring-4 ring-emerald/20 transition-all" />
           </div>
 
-          <button type="submit" className="w-full bg-emerald text-white py-6 rounded-2xl font-black uppercase text-xl shadow-lg active:scale-95 transition-all mt-4">
+          <button type="submit" className="w-full bg-emerald text-white py-7 rounded-2xl font-black uppercase text-2xl shadow-lg active:scale-95 transition-all mt-4">
             Salvar e Entrar
           </button>
-          <button type="button" onClick={() => fetchProfile(session.user.id)} className="w-full text-gray-300 font-black uppercase tracking-widest text-[10px] pt-2">
+          <button type="button" onClick={() => fetchProfile(session.user.id)} className="w-full text-gray-300 font-black uppercase tracking-widest text-[11px] pt-4">
             Pular agora
           </button>
         </form>

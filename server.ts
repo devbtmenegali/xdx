@@ -49,12 +49,28 @@ async function startServer() {
       const data: any = await response.json();
       if (!response.ok) throw new Error(data.error?.message || "Erro na API do Google");
 
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-      const jsonStr = text.replace(/```json/g, "").replace(/```/g, "").trim();
-      const parsed = JSON.parse(jsonStr);
+      let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+      
+      // LIMPEZA ULTRA-ROBUSTA
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : text;
+      
+      let parsed;
+      try {
+        parsed = JSON.parse(jsonStr);
+      } catch (e) {
+        console.warn("JSON Fail, trying manual extraction...");
+        const pMatch = text.match(/price["\s:]+([\d,.]+)/i);
+        const nMatch = text.match(/name["\s:]+["']?([^"'\n}]+)["']?/i);
+        parsed = {
+          name: nMatch ? nMatch[1].trim() : "Produto",
+          price: pMatch ? pMatch[1] : 0
+        };
+      }
 
-      if (parsed.price && typeof parsed.price === 'string') {
-        parsed.price = parseFloat(parsed.price.replace(",", ".")) || 0;
+      if (parsed.price) {
+        let p = parsed.price.toString().replace(/R\$\s?/, "").replace(/\s/g, "").replace(",", ".");
+        parsed.price = parseFloat(p) || 0;
       }
       
       res.status(200).json(parsed);

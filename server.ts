@@ -39,7 +39,7 @@ async function startServer() {
           {
             role: "user",
             parts: [
-              { text: "Você é um especialista em etiquetas de supermercado. Extraia o NOME e o PREÇO (por unidade ou por kg). Identifique se o preço é 'por quilo' (is_weight_based: true). Se for pesado, sugira o peso médio unitário em gramas (ex: Pão Francês=50, Maçã=150, Banana=120) no campo 'estimated_weight_g'. Retorne APENAS JSON." },
+              { text: "Você é um especialista em extração de preços e nomes de produtos (em etiquetas, anotações à mão ou cartazes). Extraia o NOME e o PREÇO (por unidade ou por kg). Identifique se o preço é 'por quilo' (is_weight_based: true). Se for pesado, sugira o peso médio unitário em gramas (ex: Maçã=150, Banana=120) no campo 'estimated_weight_g'. Se a informação for vaga, use o contexto para extrair o melhor resultado possível. Retorne APENAS JSON." },
               { inlineData: { data: imageData, mimeType: "image/jpeg" } }
             ]
           }

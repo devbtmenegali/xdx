@@ -68,10 +68,32 @@ async function startServer() {
       return text;
     }
 
+    async function tryOpenAIScan() {
+      if (!process.env.OPENAI_API_KEY) throw new Error("OpenAI Key missing locally");
+      console.log(`[OPENAI-LOCAL] Ativando Motor de Emergência...`);
+      
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { text: "Você é um especialista em leitura de etiquetas. Extraia NOME e PREÇO. Retorne APENAS o JSON: {\"name\": \"string\", \"price\": \"string\"}." },
+              { image_url: { url: `data:image/jpeg;base64,${imageData}` } }
+            ]
+          }
+        ],
+        response_format: { type: "json_object" }
+      });
+
+      return response.choices[0].message.content || "{}";
+    }
+
     let resultText = "";
     let engineUsed = "";
     
-    // SEQUÊNCIA DE RESGATE LOCAL
+    // SEQUÊNCIA DE RESGATE LOCAL (QUADRI-MOTOR)
     try {
       resultText = await tryDirectScan("gemini-1.5-flash");
       engineUsed = "1.5-FLASH";
@@ -90,7 +112,13 @@ async function startServer() {
           resultText = await tryDirectScan("gemini-2.0-flash");
           engineUsed = "2.0-FLASH";
         } catch (e3: any) {
-          throw new Error(`Exaustão Local Total: ${e1.message} | ${e2.message} | ${e3.message}`);
+          console.warn(`[FALLBACK-LOCAL] Gemini Exaurido, acionando OPENAI (Failsafe)...`);
+          try {
+            resultText = await tryOpenAIScan();
+            engineUsed = "GPT-4O-MINI";
+          } catch (e4: any) {
+            throw new Error(`Exaustão Local Total: ${e1.message} | ${e2.message} | ${e3.message} | ${e4.message}`);
+          }
         }
       }
     }

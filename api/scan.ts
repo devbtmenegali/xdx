@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { OpenAI } from 'openai';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -8,10 +9,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const { image } = req.body;
     const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
-
-    if (!apiKey) {
-      return res.status(500).json({ error: "Chave de API não configurada." });
-    }
+    const openaiKey = process.env.OPENAI_API_KEY;
 
     // Extrair base64 se vier com prefixo data:image/jpeg;base64,
     const imageData = image.includes('base64,') ? image.split('base64,')[1] : image;
@@ -57,30 +55,60 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return text;
     }
 
+    async function tryOpenAIScan() {
+      if (!openaiKey) throw new Error("OpenAI Key missing");
+      console.log(`[OPENAI] Ativando Motor de Emergência...`);
+      
+      const openai = new OpenAI({ apiKey: openaiKey });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { text: "Você é um especialista em leitura de etiquetas. Extraia NOME e PREÇO. Retorne APENAS o JSON: {\"name\": \"string\", \"price\": \"string\"}. Atenção a caligrafia 'o'/'O' em preços é '0'." },
+              { image_url: { url: `data:image/jpeg;base64,${imageData}` } }
+            ]
+          }
+        ],
+        response_format: { type: "json_object" }
+      });
+
+      return response.choices[0].message.content || "{}";
+    }
+
     let resultText = "";
     let engineUsed = "";
     
-    // SEQUÊNCIA DE RESGATE (TRI-MOTOR DIRETO)
+    // SEQUÊNCIA DE RESGATE (QUADRI-MOTOR)
     try {
+      if (!apiKey) throw new Error("GEMINI_KEY_MISSING");
       resultText = await tryDirectScan("gemini-1.5-flash");
       engineUsed = "1.5-FLASH";
       
       if (resultText.includes('"price": "0"') || resultText.includes('"price": ""')) {
-        console.warn("[QUALIDADE] 1.5 falhou na leitura, tentando 1.5-8B...");
         throw new Error("RETRY_FOR_QUALITY");
       }
     } catch (e1: any) {
-      console.warn(`[FALLBACK] Motor Principal falhou (${engineUsed}), tentando 8B...`);
+      console.warn(`[FALLBACK] Motor Principal falhou, tentando 8B...`);
       try {
+        if (!apiKey) throw new Error("GEMINI_KEY_MISSING");
         resultText = await tryDirectScan("gemini-1.5-flash-8b");
         engineUsed = "1.5-FLASH-8B";
       } catch (e2: any) {
         console.warn(`[FALLBACK] 8B falhou, indo para 2.0...`);
         try {
+          if (!apiKey) throw new Error("GEMINI_KEY_MISSING");
           resultText = await tryDirectScan("gemini-2.0-flash");
           engineUsed = "2.0-FLASH";
         } catch (e3: any) {
-          throw new Error(`Exaustão Total: ${e1.message} | ${e2.message} | ${e3.message}`);
+          console.warn(`[FALLBACK] Gemini Exaurido, acionando OPENAI (Failsafe)...`);
+          try {
+            resultText = await tryOpenAIScan();
+            engineUsed = "GPT-4O-MINI";
+          } catch (e4: any) {
+            throw new Error(`Colapso Total: ${e1.message} | ${e2.message} | ${e3.message} | ${e4.message}`);
+          }
         }
       }
     }

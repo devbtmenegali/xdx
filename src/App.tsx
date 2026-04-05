@@ -456,7 +456,26 @@ function AppContent() {
           <button onClick={handleLogout} className="p-2 bg-gray-50 rounded-xl text-gray-400 hover:text-red-500 transition-colors"><LogOut className="w-5 h-5" /></button>
         </div>
       </header>
-
+  
+      <AnimatePresence>
+        {message && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className={`fixed top-20 left-4 right-4 z-50 p-4 rounded-2xl shadow-lg border ${
+              message.type === 'success' ? 'bg-green-50 border-green-100 text-green-600' : 'bg-red-50 border-red-100 text-red-600'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              {message.type === 'success' ? <Check className="w-5 h-5" /> : <X className="w-5 h-5" />}
+              <p className="font-bold text-sm">{message.text}</p>
+            </div>
+            <button onClick={() => setMessage(null)} className="absolute top-2 right-2 p-1 opacity-20"><X className="w-4 h-4" /></button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+  
       <main className="max-w-2xl mx-auto p-6 space-y-8">
         {/* Tabs - Only for Admins */}
         {profile?.role === 'admin' && (

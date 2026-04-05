@@ -447,14 +447,15 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-white text-gray-900 pb-[calc(8rem+env(safe-area-inset-bottom))]">
       <header className="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-gray-100 p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] flex justify-between items-center z-40">
-        <div className="flex items-center gap-4">
-          <XDXLogo className="w-14 h-14" />
+      <header className="max-w-2xl mx-auto p-4 flex justify-between items-center bg-white/50 backdrop-blur-md sticky top-0 z-30">
+        <div className="flex items-center gap-2">
+          <XDXLogo className="w-10 h-10" />
           <div>
-            <h1 className="text-4xl font-black text-[#003d4d] tracking-tighter italic leading-none">XĐX</h1>
-            <p className="text-[10px] font-black text-emerald uppercase tracking-widest mt-1">Global Shopping v8</p>
+            <h1 className="text-2xl font-black text-[#003d4d] tracking-tighter italic leading-none">XĐX</h1>
+            <p className="text-[8px] font-black text-emerald uppercase tracking-widest">Global Shopping v8</p>
           </div>
         </div>
-        <button onClick={handleLogout} className="p-3 bg-gray-50 rounded-2xl text-gray-400 hover:text-red-500 transition-colors"><LogOut className="w-6 h-6" /></button>
+        <button onClick={handleLogout} className="p-2 bg-gray-50 rounded-xl text-gray-400 hover:text-red-500 transition-colors"><LogOut className="w-5 h-5" /></button>
       </header>
 
       <main className="max-w-2xl mx-auto p-6 space-y-8">
@@ -467,10 +468,10 @@ function AppContent() {
         )}
 
         {activeTab === 'list' ? (
-          <div className="space-y-6">
-            <div className="flex justify-between items-end px-2">
-              <h2 className="text-2xl font-black uppercase tracking-tighter text-[#003d4d]">Sua Lista</h2>
-              {items.length > 0 && <button onClick={clearList} className="text-xs font-black text-red-400 uppercase tracking-widest">Limpar Tudo</button>}
+          <div className="space-y-4">
+            <div className="flex justify-between items-end px-1">
+              <h2 className="text-lg font-black uppercase tracking-tighter text-[#003d4d]">Sua Lista</h2>
+              {items.length > 0 && <button onClick={clearList} className="text-[10px] font-black text-red-400 uppercase tracking-widest">Limpar Tudo</button>}
             </div>
             
             <div className="space-y-4">
@@ -483,18 +484,18 @@ function AppContent() {
                 )}
                 {items.map(item => (
                   <motion.div key={item.id} layout initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, scale: 0.95 }}
-                    className="bg-gray-50/50 p-6 rounded-[2.5rem] border border-gray-100 flex justify-between items-center group">
-                    <div className="flex-1 min-w-0 pr-4">
-                      <h3 className="text-2xl font-black text-[#1a202c] uppercase truncate mb-1">{item.name}</h3>
-                      <p className="text-3xl font-black text-emerald">R$ {item.price.toFixed(2)} <span className="text-xs text-gray-400 font-bold ml-2">unid.</span></p>
+                    className="bg-white p-3 rounded-2xl border border-gray-100 flex justify-between items-center group shadow-sm">
+                    <div className="flex-1 min-w-0 pr-3">
+                      <h3 className="text-sm font-black text-[#1a202c] uppercase truncate">{item.name}</h3>
+                      <p className="text-base font-black text-emerald">R$ {item.price.toFixed(2)}</p>
                     </div>
-                    <div className="flex flex-col items-end gap-3">
-                      <div className="flex items-center gap-4 bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
-                        <button onClick={() => updateQty(item.id, -1, item.quantity)} className="w-10 h-10 bg-emerald/10 text-emerald rounded-xl font-black text-xl">-</button>
-                        <span className="font-black text-2xl min-w-[1.5rem] text-center">{item.quantity}</span>
-                        <button onClick={() => updateQty(item.id, 1, item.quantity)} className="w-10 h-10 bg-emerald/10 text-emerald rounded-xl font-black text-xl">+</button>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-xl border border-gray-100">
+                        <button onClick={() => updateQty(item.id, -1, item.quantity)} className="w-8 h-8 bg-white text-emerald rounded-lg font-black shadow-sm">-</button>
+                        <span className="font-black text-sm min-w-[1rem] text-center">{item.quantity}</span>
+                        <button onClick={() => updateQty(item.id, 1, item.quantity)} className="w-8 h-8 bg-white text-emerald rounded-lg font-black shadow-sm">+</button>
                       </div>
-                      <button onClick={() => removeItem(item.id)} className="text-red-300 hover:text-red-500 transition-colors"><Trash2 className="w-5 h-5" /></button>
+                      <button onClick={() => removeItem(item.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
                     </div>
                   </motion.div>
                 ))}
@@ -534,14 +535,14 @@ function AppContent() {
       </main>
 
       {/* FIXED FOOTER TOTAL & SCANNER TRIGGER */}
-      <div className="fixed bottom-0 left-0 right-0 p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] bg-white/90 backdrop-blur-2xl border-t border-gray-100 z-40 max-w-2xl mx-auto">
-        <div className="flex items-center justify-between gap-6">
+      <div className="fixed bottom-0 left-0 right-0 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-white/95 backdrop-blur-3xl border-t border-gray-100 z-40 max-w-2xl mx-auto">
+        <div className="flex items-center justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">TOTAL DA COMPRA</p>
-            <p className="text-5xl font-black text-emerald tracking-tighter truncate italic">R$ {total.toFixed(2)}</p>
+            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">TOTAL DA COMPRA</p>
+            <p className="text-3xl font-black text-emerald tracking-tighter truncate italic leading-none">R$ {total.toFixed(2)}</p>
           </div>
-          <button onClick={() => setIsCameraOpen(true)} className="w-24 h-24 bg-emerald text-white rounded-[2rem] shadow-[0_15px_40px_rgba(16,185,129,0.3)] flex items-center justify-center active:scale-95 transition-all">
-            <Camera className="w-10 h-10" />
+          <button onClick={() => setIsCameraOpen(true)} className="w-16 h-16 bg-emerald text-white rounded-[1.5rem] shadow-[0_10px_30px_rgba(16,185,129,0.3)] flex items-center justify-center active:scale-95 transition-all">
+            <Camera className="w-8 h-8" />
           </button>
         </div>
       </div>
@@ -573,57 +574,56 @@ function AppContent() {
       {/* SCANNED PRODUCT MODAL */}
       <AnimatePresence>
         {scannedProduct && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[70] bg-white/95 backdrop-blur-2xl flex items-end sm:items-center justify-center p-6">
-            <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }} className="bg-white w-full max-w-md rounded-[3rem] p-10 shadow-[0_40px_80px_rgba(0,0,0,0.2)] border border-gray-100 space-y-8 overflow-y-auto max-h-[90vh]">
-              <div className="flex justify-between items-start">
-                <h2 className="text-3xl font-black uppercase tracking-tighter text-[#003d4d]">Confirmar Item</h2>
-                <button onClick={() => setScannedProduct(null)} className="p-2"><X className="w-8 h-8 text-gray-300" /></button>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-md flex items-end sm:items-center justify-center">
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="bg-white w-full max-w-md rounded-t-[2.5rem] sm:rounded-[2.5rem] p-6 pb-10 shadow-2xl border border-gray-100 space-y-5">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-black uppercase tracking-tighter text-[#003d4d]">Confirmar Item</h2>
+                <button onClick={() => setScannedProduct(null)} className="p-2"><X className="w-6 h-6 text-gray-300" /></button>
               </div>
-
-              {lastCapturedImage && <img src={lastCapturedImage} className="w-full aspect-video object-cover rounded-3xl border shadow-inner" />}
-
-              <div className="space-y-6">
-                <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Identificação</label>
-                  <input type="text" value={scannedProduct.name} onChange={e => setScannedProduct({...scannedProduct, name: e.target.value})} className="w-full bg-gray-50 p-6 rounded-2xl font-black text-3xl uppercase outline-emerald" />
-                </div>
-
-                <div className="flex flex-col gap-3">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Preço Unitário</label>
-                  <div className="relative">
-                    <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-2xl text-gray-400">R$</span>
-                    <input type="number" step="0.01" value={scannedProduct.price} onChange={e => setScannedProduct({...scannedProduct, price: parseFloat(e.target.value) || 0})} className="w-full bg-gray-50 p-6 pl-16 rounded-2xl font-black text-4xl outline-emerald" />
+ 
+              <div className="flex gap-4">
+                {lastCapturedImage && <img src={lastCapturedImage} className="w-24 h-24 object-cover rounded-2xl border shadow-inner" />}
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Identificação</label>
+                    <input type="text" value={scannedProduct.name} onChange={e => setScannedProduct({...scannedProduct, name: e.target.value})} className="w-full bg-gray-50 px-4 py-3 rounded-xl font-black text-lg uppercase outline-emerald" />
                   </div>
-                  
-                  {/* PRICE ALERT */}
-                  {lastPriceInfo && (
-                    <div className={`p-4 rounded-2xl flex items-center gap-3 border ${scannedProduct.price > lastPriceInfo.price ? 'bg-red-50 border-red-100 text-red-500' : scannedProduct.price < lastPriceInfo.price ? 'bg-green-50 border-green-100 text-green-500' : 'bg-gray-50 border-gray-100 text-gray-400'}`}>
-                      <div className="flex-1">
-                        <p className="font-black uppercase text-[10px] tracking-widest">{scannedProduct.price > lastPriceInfo.price ? '⚠️ Preço Subiu!' : scannedProduct.price < lastPriceInfo.price ? '✅ Preço Baixou!' : 'Mesmo preço anterior'}</p>
-                        <p className="text-sm font-bold mt-0.5">Última compra: R$ {lastPriceInfo.price.toFixed(2)}</p>
-                      </div>
-                      {scannedProduct.price > lastPriceInfo.price ? <Zap className="w-6 h-6 animate-pulse" /> : <Check className="w-6 h-6" />}
+                  <div>
+                    <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Preço Unitário</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-sm text-gray-400">R$</span>
+                      <input type="number" step="0.01" value={scannedProduct.price} onChange={e => setScannedProduct({...scannedProduct, price: parseFloat(e.target.value) || 0})} className="w-full bg-gray-50 px-4 py-3 pl-10 rounded-xl font-black text-xl outline-emerald" />
                     </div>
-                  )}
-                </div>
-
-                <div className="pt-6 border-t border-gray-100 space-y-4">
-                  <p className="text-center text-[10px] font-black text-gray-400 uppercase tracking-widest">QUANTIDADE</p>
-                  <div className="flex items-center justify-center gap-10">
-                    <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-16 h-16 bg-gray-50 rounded-2xl font-black text-4xl border active:scale-90 transition-all">-</button>
-                    <span className="text-6xl font-black text-[#003d4d]">{quantity}</span>
-                    <button onClick={() => setQuantity(quantity + 1)} className="w-16 h-16 bg-gray-50 rounded-2xl font-black text-4xl border active:scale-90 transition-all">+</button>
                   </div>
-                </div>
-
-                <div className="pt-8 flex flex-col gap-4">
-                  <div className="text-center">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">SUBTOTAL DO ITEM</p>
-                    <p className="text-4xl font-black text-[#003d4d]">R$ {(scannedProduct.price * quantity).toFixed(2)}</p>
-                  </div>
-                  <button onClick={addToCart} className="w-full bg-emerald text-white py-6 rounded-3xl font-black uppercase text-xl shadow-xl hover:shadow-emerald/20 active:scale-95 transition-all">Confirmar e Adicionar</button>
                 </div>
               </div>
+ 
+              {lastPriceInfo && (
+                <div className={`p-3 rounded-xl flex items-center gap-3 border ${scannedProduct.price > lastPriceInfo.price ? 'bg-red-50 border-red-100 text-red-500' : scannedProduct.price < lastPriceInfo.price ? 'bg-green-50 border-green-100 text-green-500' : 'bg-gray-50 border-gray-100 text-gray-400'}`}>
+                  <div className="flex-1">
+                    <p className="font-black uppercase text-[8px] tracking-widest">{scannedProduct.price > lastPriceInfo.price ? '⚠️ Subiu!' : scannedProduct.price < lastPriceInfo.price ? '✅ Baixou!' : 'Mesmo preço'}</p>
+                    <p className="text-xs font-bold">Último: R$ {lastPriceInfo.price.toFixed(2)}</p>
+                  </div>
+                  {scannedProduct.price > lastPriceInfo.price ? <Zap className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+                </div>
+              )}
+ 
+              <div className="flex items-center justify-between py-4 border-y border-gray-50">
+                <div>
+                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-2">QUANTIDADE</p>
+                  <div className="flex items-center gap-6">
+                    <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 h-10 bg-gray-50 rounded-xl font-black text-xl border">-</button>
+                    <span className="text-3xl font-black text-[#003d4d]">{quantity}</span>
+                    <button onClick={() => setQuantity(quantity + 1)} className="w-10 h-10 bg-gray-50 rounded-xl font-black text-xl border">+</button>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">SUBTOTAL</p>
+                  <p className="text-3xl font-black text-emerald italic">R$ {(scannedProduct.price * quantity).toFixed(2)}</p>
+                </div>
+              </div>
+ 
+              <button onClick={addToCart} className="w-full bg-emerald text-white py-5 rounded-2xl font-black uppercase text-base shadow-lg active:scale-[0.98] transition-all">Confirmar e Adicionar</button>
             </motion.div>
           </motion.div>
         )}

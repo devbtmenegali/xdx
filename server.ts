@@ -27,35 +27,41 @@ async function startServer() {
         return res.status(500).json({ error: "Chave de API não configurada no servidor." });
       }
 
-      const ai = new GoogleGenAI({ apiKey });
-      const modelName = "gemini-1.5-flash"; 
-      const imageData = image.includes(",") ? image.split(",")[1] : image;
-  
-      console.log("Servidor iniciando scan com modelo:", modelName);
-  
-      const result = await ai.models.generateContent({
-        model: modelName,
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { text: "Você é um especialista em leitura de etiquetas de supermercado, anotações à mão e preços. Extraia o NOME do produto e o PREÇO unitário. Retorne APENAS um JSON: {\"name\": \"string\", \"price\": number}. Se a informação for vaga ou manuscrita, tente extrair o melhor possível. Se não ler nada, use {\"name\": \"\", \"price\": 0}." },
-              { inlineData: { data: imageData, mimeType: "image/jpeg" } }
-            ]
-          }
-        ],
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              name: { type: Type.STRING },
-              price: { type: Type.NUMBER }
-            },
-            required: ["name", "price"]
-          }
+    const ai = new GoogleGenAI({ apiKey });
+    const modelName = "gemini-1.5-flash"; 
+    const imageData = image.includes(",") ? image.split(",")[1] : image;
+
+    console.log("[v10-FINAL-BLINDADA] Servidor iniciando scan local com modelo:", modelName);
+
+    const result = await ai.models.generateContent({
+      model: modelName,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: "Você é um especialista em leitura de etiquetas de supermercado, anotações à mão e preços. Extraia o NOME do produto e o PREÇO unitário. Retorne APENAS um JSON: {\"name\": \"string\", \"price\": number}. Se não ler nada, use {\"name\": \"\", \"price\": 0}." },
+            { inlineData: { data: imageData, mimeType: "image/jpeg" } }
+          ]
         }
-      });
+      ],
+      config: {
+        responseMimeType: "application/json",
+        safetySettings: [
+          { category: 'HARM_CATEGORY_HARASSMENT' as any, threshold: 'BLOCK_NONE' as any },
+          { category: 'HARM_CATEGORY_HATE_SPEECH' as any, threshold: 'BLOCK_NONE' as any },
+          { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT' as any, threshold: 'BLOCK_NONE' as any },
+          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT' as any, threshold: 'BLOCK_NONE' as any },
+        ],
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            name: { type: Type.STRING },
+            price: { type: Type.NUMBER }
+          },
+          required: ["name", "price"]
+        }
+      }
+    });
   
       let text = result.text || "{}";
       console.log("Resultado da IA Bruto (Local):", text);

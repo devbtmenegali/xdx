@@ -329,8 +329,9 @@ function AppContent() {
     if (!scannedProduct || !session) return;
     
     // For weighed products, calculate total price to save
+    const unitWeight = scannedProduct.estimatedWeightG || 100;
     const finalPrice = scannedProduct.isWeightBased 
-      ? (scannedProduct.price * (quantity * (scannedProduct.estimatedWeightG || 0) / 1000))
+      ? (scannedProduct.price * (quantity * unitWeight / 1000))
       : scannedProduct.price;
     
     // For weighed products, save as 1 unit with calculated price
@@ -338,7 +339,7 @@ function AppContent() {
     
     // Append weight info to name if applicable
     const displayName = scannedProduct.isWeightBased 
-      ? `${scannedProduct.name} (~${((quantity * (scannedProduct.estimatedWeightG || 0)) / 1000).toFixed(3)}kg)`
+      ? `${scannedProduct.name} (~${((quantity * unitWeight) / 1000).toFixed(3)}kg)`
       : scannedProduct.name;
 
     const { error } = await supabase.from('items').insert([{
@@ -461,7 +462,7 @@ function AppContent() {
                   <motion.div key={item.id} layout initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, scale: 0.95 }}
                     className="bg-white p-3 rounded-2xl border border-gray-100 flex justify-between items-center group shadow-sm">
                     <div className="flex-1 min-w-0 pr-3">
-                      <h3 className="text-sm font-black text-[#1a202c] uppercase truncate">{item.name}</h3>
+                      <h3 className="text-sm font-black text-[#1a202c] uppercase">{item.name}</h3>
                       <p className="text-base font-black text-emerald">R$ {item.price.toFixed(2)}</p>
                     </div>
                     <div className="flex items-center gap-3">
@@ -519,7 +520,7 @@ function AppContent() {
                    <button onClick={finalizePurchase} className="text-[8px] font-black text-emerald uppercase tracking-[0.2em] animate-pulse">Confirmar Agora</button>
                 )}
              </div>
-             <p className="text-3xl font-black text-[#003d4d] tracking-tighter truncate italic leading-none">R$ {total.toFixed(2)}</p>
+             <p className="text-3xl font-black text-[#003d4d] tracking-tighter italic leading-none whitespace-nowrap">R$ {total.toFixed(2)}</p>
           </div>
           <div className="flex gap-2">
             {items.length > 0 && (
@@ -654,12 +655,12 @@ function AppContent() {
                   </div>
                   <p className="text-3xl font-black text-emerald italic">
                     R$ {scannedProduct.isWeightBased 
-                      ? (scannedProduct.price * (quantity * (scannedProduct.estimatedWeightG || 0) / 1000)).toFixed(2)
+                      ? (scannedProduct.price * (quantity * (scannedProduct.estimatedWeightG || 100) / 1000)).toFixed(2)
                       : (scannedProduct.price * quantity).toFixed(2)
                     }
                   </p>
                   {scannedProduct.isWeightBased && (
-                    <p className="text-[10px] font-bold text-gray-400 italic">~ {((quantity * (scannedProduct.estimatedWeightG || 0)) / 1000).toFixed(3)}kg total</p>
+                    <p className="text-[10px] font-bold text-gray-400 italic">~ {((quantity * (scannedProduct.estimatedWeightG || 100)) / 1000).toFixed(3)}kg total</p>
                   )}
                 </div>
               </div>

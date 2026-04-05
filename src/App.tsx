@@ -334,13 +334,19 @@ function AppContent() {
       ? (scannedProduct.price * (quantity * unitWeight / 1000))
       : scannedProduct.price;
     
+    if (finalPrice <= 0) {
+      setMessage({ type: 'error', text: 'Preço inválido (R$ 0,00).' });
+      return;
+    }
+    
     // For weighed products, save as 1 unit with calculated price
     const finalQuantity = scannedProduct.isWeightBased ? 1 : quantity;
     
     // Append weight info to name if applicable
+    const pName = scannedProduct.name.trim() || 'Produto';
     const displayName = scannedProduct.isWeightBased 
-      ? `${scannedProduct.name} (~${((quantity * unitWeight) / 1000).toFixed(3)}kg)`
-      : scannedProduct.name;
+      ? `${pName} (~${((quantity * unitWeight) / 1000).toFixed(3)}kg)`
+      : pName;
 
     const { error } = await supabase.from('items').insert([{
       name: displayName,
@@ -431,7 +437,17 @@ function AppContent() {
             <p className="text-[8px] font-black text-emerald uppercase tracking-widest">Global Shopping v8</p>
           </div>
         </div>
-        <button onClick={handleLogout} className="p-2 bg-gray-50 rounded-xl text-gray-400 hover:text-red-500 transition-colors"><LogOut className="w-5 h-5" /></button>
+        <div className="flex items-center gap-3">
+          {items.length > 0 && activeTab === 'list' && (
+            <button 
+              onClick={finalizePurchase} 
+              className="bg-emerald text-white px-4 py-2 rounded-xl font-black uppercase text-[10px] shadow-sm active:scale-95 transition-all flex items-center gap-2"
+            >
+              <Check className="w-4 h-4" /> Finalizar
+            </button>
+          )}
+          <button onClick={handleLogout} className="p-2 bg-gray-50 rounded-xl text-gray-400 hover:text-red-500 transition-colors"><LogOut className="w-5 h-5" /></button>
+        </div>
       </header>
 
       <main className="max-w-2xl mx-auto p-6 space-y-8">
@@ -511,30 +527,15 @@ function AppContent() {
       </main>
 
       {/* FIXED FOOTER TOTAL & SCANNER TRIGGER */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-white/95 backdrop-blur-3xl border-t border-gray-100 z-40 max-w-2xl mx-auto shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
-        <div className="flex items-center gap-4">
+      <div className="fixed bottom-0 left-0 right-0 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-white/95 backdrop-blur-3xl border-t border-gray-100 z-40 max-w-2xl mx-auto shadow-[0_-15px_50px_rgba(0,0,0,0.1)]">
+        <div className="flex items-center justify-between gap-4">
           <div className="flex-1 min-w-0">
-             <div className="flex items-center justify-between mb-1">
-                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">TOTAL DA COMPRA</p>
-                {items.length > 0 && (
-                   <button onClick={finalizePurchase} className="text-[8px] font-black text-emerald uppercase tracking-[0.2em] animate-pulse">Confirmar Agora</button>
-                )}
-             </div>
-             <p className="text-3xl font-black text-[#003d4d] tracking-tighter italic leading-none whitespace-nowrap">R$ {total.toFixed(2)}</p>
+             <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em] mb-1">Total da Compra</p>
+             <p className="text-4xl font-black text-[#003d4d] tracking-tighter italic leading-none whitespace-nowrap overflow-visible">R$ {total.toFixed(2)}</p>
           </div>
-          <div className="flex gap-2">
-            {items.length > 0 && (
-              <button 
-                onClick={finalizePurchase}
-                className="flex items-center gap-2 bg-emerald text-white px-5 rounded-[1.3rem] font-black uppercase text-[10px] shadow-lg active:scale-95 transition-all"
-              >
-                <Check className="w-4 h-4" /> Finalizar
-              </button>
-            )}
-            <button onClick={() => setIsCameraOpen(true)} className="w-14 h-14 bg-[#003d4d] text-white rounded-[1.3rem] shadow-xl flex items-center justify-center active:scale-95 transition-all">
-              <Camera className="w-6 h-6" />
-            </button>
-          </div>
+          <button onClick={() => setIsCameraOpen(true)} className="w-18 h-18 sm:w-20 sm:h-20 bg-[#003d4d] text-white rounded-[1.8rem] shadow-2xl flex items-center justify-center active:scale-90 transition-all">
+            <Camera className="w-8 h-8 sm:w-10 sm:h-10" />
+          </button>
         </div>
       </div>
 
@@ -580,10 +581,12 @@ function AppContent() {
                     <input type="text" value={scannedProduct.name} onChange={e => setScannedProduct({...scannedProduct, name: e.target.value})} className="w-full bg-gray-50 px-4 py-3 rounded-xl font-black text-lg uppercase outline-emerald" />
                   </div>
                   <div>
-                    <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Preço Unitário</label>
+                    <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1 block">
+                      {scannedProduct.isWeightBased ? 'Preço por QUILO (Kg)' : 'Preço Unitário'}
+                    </label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-sm text-gray-400">R$</span>
-                      <input type="number" step="0.01" value={scannedProduct.price} onChange={e => setScannedProduct({...scannedProduct, price: parseFloat(e.target.value) || 0})} className="w-full bg-gray-50 px-4 py-3 pl-10 rounded-xl font-black text-xl outline-emerald" />
+                      <input type="number" step="0.01" value={scannedProduct.price} onChange={e => setScannedProduct({...scannedProduct, price: parseFloat(e.target.value) || 0})} className={`w-full bg-gray-50 px-4 py-3 pl-10 rounded-xl font-black text-xl outline-emerald ${scannedProduct.isWeightBased ? 'border-2 border-emerald/20' : ''}`} />
                     </div>
                   </div>
                 </div>

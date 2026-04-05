@@ -216,7 +216,10 @@ function AppContent() {
 
   const fetchItems = async () => {
     if (!session) return;
-    const { data, error } = await supabase.from('items').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('items')
+      .select('*')
+      .eq('is_session', true)
+      .order('created_at', { ascending: false });
     if (data) {
       setItems(data.map(i => ({ ...i, rawText: i.raw_text })));
     }
@@ -324,16 +327,33 @@ function AppContent() {
   // --- ITEM HANDLERS ---
   const addToCart = async () => {
     if (!scannedProduct || !session) return;
+    
+    // For weighed products, calculate total price to save
+    const finalPrice = scannedProduct.isWeightBased 
+      ? (scannedProduct.price * (quantity * (scannedProduct.estimatedWeightG || 0) / 1000))
+      : scannedProduct.price;
+    
+    // For weighed products, save as 1 unit with calculated price
+    const finalQuantity = scannedProduct.isWeightBased ? 1 : quantity;
+    
+    // Append weight info to name if applicable
+    const displayName = scannedProduct.isWeightBased 
+      ? `${scannedProduct.name} (~${((quantity * (scannedProduct.estimatedWeightG || 0)) / 1000).toFixed(3)}kg)`
+      : scannedProduct.name;
+
     const { error } = await supabase.from('items').insert([{
-      name: scannedProduct.name,
-      price: scannedProduct.price,
-      quantity: quantity,
+      name: displayName,
+      price: finalPrice,
+      quantity: finalQuantity,
       raw_text: scannedProduct.rawText,
-      store_name: storeName
+      store_name: storeName,
+      user_id: session.user.id
     }]);
+    
     if (!error) {
-      fetchItems();
       setScannedProduct(null);
+      setQuantity(1);
+      fetchItems();
       setLastCapturedImage(null);
     } else setError('Erro ao salvar item.');
   };
@@ -349,9 +369,30 @@ function AppContent() {
     if (!error) fetchItems();
   };
 
+  const finalizePurchase = async () => {
+    if (!session || items.length === 0) return;
+    if (!window.confirm('Deseja finalizar esta compra e salvar no seu histórico?')) return;
+    
+    setAuthLoading(true);
+    const tripId = crypto.randomUUID();
+    const { error } = await supabase.from('items')
+      .update({ is_session: false, trip_id: tripId })
+      .eq('user_id', session.user.id)
+      .eq('is_session', true);
+
+    if (!error) {
+       setItems([]);
+       setMessage({ type: 'success', text: 'Compra finalizada e salva com sucesso!' });
+       setTimeout(() => setMessage(null), 3000);
+    } else {
+       setError('Erro ao finalizar compra.');
+    }
+    setAuthLoading(false);
+  };
+
   const clearList = async () => {
-    if (!window.confirm('Limpar lista?')) return;
-    const { error } = await supabase.from('items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    if (!window.confirm('Limpar lista atual? (Os itens não serão salvos no histórico)')) return;
+    const { error } = await supabase.from('items').delete().eq('is_session', true);
     if (!error) setItems([]);
   };
 
@@ -469,15 +510,30 @@ function AppContent() {
       </main>
 
       {/* FIXED FOOTER TOTAL & SCANNER TRIGGER */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-white/95 backdrop-blur-3xl border-t border-gray-100 z-40 max-w-2xl mx-auto">
-        <div className="flex items-center justify-between gap-4">
+      <div className="fixed bottom-0 left-0 right-0 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-white/95 backdrop-blur-3xl border-t border-gray-100 z-40 max-w-2xl mx-auto shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+        <div className="flex items-center gap-4">
           <div className="flex-1 min-w-0">
-            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">TOTAL DA COMPRA</p>
-            <p className="text-3xl font-black text-emerald tracking-tighter truncate italic leading-none">R$ {total.toFixed(2)}</p>
+             <div className="flex items-center justify-between mb-1">
+                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">TOTAL DA COMPRA</p>
+                {items.length > 0 && (
+                   <button onClick={finalizePurchase} className="text-[8px] font-black text-emerald uppercase tracking-[0.2em] animate-pulse">Confirmar Agora</button>
+                )}
+             </div>
+             <p className="text-3xl font-black text-[#003d4d] tracking-tighter truncate italic leading-none">R$ {total.toFixed(2)}</p>
           </div>
-          <button onClick={() => setIsCameraOpen(true)} className="w-16 h-16 bg-emerald text-white rounded-[1.5rem] shadow-[0_10px_30px_rgba(16,185,129,0.3)] flex items-center justify-center active:scale-95 transition-all">
-            <Camera className="w-8 h-8" />
-          </button>
+          <div className="flex gap-2">
+            {items.length > 0 && (
+              <button 
+                onClick={finalizePurchase}
+                className="flex items-center gap-2 bg-emerald text-white px-5 rounded-[1.3rem] font-black uppercase text-[10px] shadow-lg active:scale-95 transition-all"
+              >
+                <Check className="w-4 h-4" /> Finalizar
+              </button>
+            )}
+            <button onClick={() => setIsCameraOpen(true)} className="w-14 h-14 bg-[#003d4d] text-white rounded-[1.3rem] shadow-xl flex items-center justify-center active:scale-95 transition-all">
+              <Camera className="w-6 h-6" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -547,9 +603,42 @@ function AppContent() {
                 </div>
               )}
  
+              <div className="bg-gray-50 p-4 rounded-2xl flex items-center justify-center gap-6">
+                <button 
+                  onClick={() => setScannedProduct({...scannedProduct, isWeightBased: false})}
+                  className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${!scannedProduct.isWeightBased ? 'bg-white text-[#003d4d] shadow-sm' : 'text-gray-400'}`}
+                >
+                  📦 Unidade
+                </button>
+                <button 
+                  onClick={() => setScannedProduct({...scannedProduct, isWeightBased: true})}
+                  className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${scannedProduct.isWeightBased ? 'bg-white text-emerald shadow-sm' : 'text-gray-400'}`}
+                >
+                  ⚖️ Peso Estimado
+                </button>
+              </div>
+
+              {scannedProduct.isWeightBased && (
+                <div className="p-4 bg-emerald/5 rounded-2xl border border-emerald/10 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <p className="text-[8px] font-black text-emerald uppercase tracking-widest">Peso Unitário Médio</p>
+                    <div className="flex items-center gap-2">
+                       <input 
+                        type="number" 
+                        value={scannedProduct.estimatedWeightG || 0} 
+                        onChange={e => setScannedProduct({...scannedProduct, estimatedWeightG: parseInt(e.target.value) || 0})}
+                        className="w-16 bg-white border border-emerald/20 rounded-lg p-1 text-center font-black text-emerald"
+                      />
+                      <span className="text-[10px] font-black text-emerald">g</span>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-emerald/60 font-medium leading-tight">Baseado no peso médio de {scannedProduct.name || 'item'} encontrado na internet.</p>
+                </div>
+              )}
+ 
               <div className="flex items-center justify-between py-4 border-y border-gray-50">
                 <div>
-                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-2">QUANTIDADE</p>
+                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-2">QUANTIDADE (UN)</p>
                   <div className="flex items-center gap-6">
                     <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 h-10 bg-gray-50 rounded-xl font-black text-xl border">-</button>
                     <span className="text-3xl font-black text-[#003d4d]">{quantity}</span>
@@ -557,8 +646,21 @@ function AppContent() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">SUBTOTAL</p>
-                  <p className="text-3xl font-black text-emerald italic">R$ {(scannedProduct.price * quantity).toFixed(2)}</p>
+                  <div className="flex flex-col items-end gap-1">
+                    {scannedProduct.isWeightBased && (
+                      <span className="bg-emerald text-white text-[8px] font-black px-2 py-0.5 rounded-full animate-bounce">VALOR ESTIMADO</span>
+                    )}
+                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">SUBTOTAL</p>
+                  </div>
+                  <p className="text-3xl font-black text-emerald italic">
+                    R$ {scannedProduct.isWeightBased 
+                      ? (scannedProduct.price * (quantity * (scannedProduct.estimatedWeightG || 0) / 1000)).toFixed(2)
+                      : (scannedProduct.price * quantity).toFixed(2)
+                    }
+                  </p>
+                  {scannedProduct.isWeightBased && (
+                    <p className="text-[10px] font-bold text-gray-400 italic">~ {((quantity * (scannedProduct.estimatedWeightG || 0)) / 1000).toFixed(3)}kg total</p>
+                  )}
                 </div>
               </div>
  

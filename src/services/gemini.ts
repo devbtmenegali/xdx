@@ -2,6 +2,8 @@ export interface ProductInfo {
   name: string;
   price: number;
   rawText?: string;
+  isWeightBased?: boolean;
+  estimatedWeightG?: number;
 }
 
 export async function scanPriceTag(base64Image: string): Promise<ProductInfo | null> {

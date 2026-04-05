@@ -16,10 +16,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const ai = new GoogleGenAI({ apiKey });
-    const modelName = "gemini-1.5-flash"; 
+    const modelName = "gemini-2.0-flash"; 
     const imageData = image.includes(",") ? image.split(",")[1] : image;
 
-    console.log("[v10-FINAL-BLINDADA] Iniciando scan na Vercel com modelo:", modelName);
+    console.log("[v2.0-GEMINI] Iniciando scan na Vercel com modelo:", modelName);
 
     const result = await ai.models.generateContent({
       model: modelName,

@@ -322,9 +322,15 @@ function AppContent() {
       }
     } catch (e: any) {
       console.error("Erro no processamento:", e);
-      const errMsg = e.message || 'Erro no processamento';
+      let errMsg = e.message || 'Erro no processamento';
+      
+      // Amigável para erro de limite (429)
+      if (errMsg.includes('429') || errMsg.includes('RESOURSE_EXHAUSTED')) {
+        errMsg = "O Google está cansado! 😴 Aguarde 15 segundos e tente novamente.";
+      }
+
       setError(errMsg);
-      setMessage({ type: 'error', text: `ERRO: ${errMsg}` });
+      setMessage({ type: 'error', text: errMsg });
       setScannedProduct({ name: '', price: 0 });
     } finally {
       setIsScanning(false);

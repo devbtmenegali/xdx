@@ -28,10 +28,10 @@ async function startServer() {
       }
 
     const ai = new GoogleGenAI({ apiKey });
-    const modelName = "gemini-1.5-flash-8b"; 
+    const modelName = "gemini-2.0-flash"; 
     const imageData = image.includes(",") ? image.split(",")[1] : image;
 
-    console.log("[vESTÁVEL] Servidor iniciando scan local com modelo:", modelName);
+    console.log("[RESGATE-2.0] Servidor iniciando scan local com modelo:", modelName);
 
     const result = await ai.models.generateContent({
       model: modelName,

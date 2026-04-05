@@ -446,7 +446,6 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900 pb-[calc(8rem+env(safe-area-inset-bottom))]">
-      <header className="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-gray-100 p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] flex justify-between items-center z-40">
       <header className="max-w-2xl mx-auto p-4 flex justify-between items-center bg-white/50 backdrop-blur-md sticky top-0 z-30">
         <div className="flex items-center gap-2">
           <XDXLogo className="w-10 h-10" />

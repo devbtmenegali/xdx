@@ -16,41 +16,55 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const ai = new GoogleGenAI({ apiKey });
-    const modelName = "gemini-2.0-flash"; 
     const imageData = image.includes(",") ? image.split(",")[1] : image;
 
-    console.log("[RESGATE-2.0] Iniciando scan na Vercel com modelo:", modelName);
-
-    const result = await ai.models.generateContent({
-      model: modelName,
-      contents: [
-        {
+    async function tryScan(model: string) {
+      console.log(`[TURBINA] Tentando scan com: ${model}`);
+      return await ai.models.generateContent({
+        model,
+        contents: [{
           role: "user",
           parts: [
             { text: "Você é um especialista em leitura de etiquetas de supermercado, anotações à mão e preços. Extraia o NOME do produto e o PREÇO unitário. Retorne APENAS um JSON: {\"name\": \"string\", \"price\": number}. Se a informação for manuscrita, use o contexto para ler corretamente. Se não ler nada, use {\"name\": \"\", \"price\": 0}." },
             { inlineData: { data: imageData, mimeType: "image/jpeg" } }
           ]
+        }],
+        config: {
+          responseMimeType: "application/json",
+          safetySettings: [
+            { category: 'HARM_CATEGORY_HARASSMENT' as any, threshold: 'BLOCK_NONE' as any },
+            { category: 'HARM_CATEGORY_HATE_SPEECH' as any, threshold: 'BLOCK_NONE' as any },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT' as any, threshold: 'BLOCK_NONE' as any },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT' as any, threshold: 'BLOCK_NONE' as any },
+          ],
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING },
+              price: { type: Type.NUMBER }
+            },
+            required: ["name", "price"]
+          }
         }
-      ],
-      config: {
-        responseMimeType: "application/json",
-        safetySettings: [
-          { category: 'HARM_CATEGORY_HARASSMENT' as any, threshold: 'BLOCK_NONE' as any },
-          { category: 'HARM_CATEGORY_HATE_SPEECH' as any, threshold: 'BLOCK_NONE' as any },
-          { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT' as any, threshold: 'BLOCK_NONE' as any },
-          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT' as any, threshold: 'BLOCK_NONE' as any },
-        ],
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            name: { type: Type.STRING },
-            price: { type: Type.NUMBER }
-          },
-          required: ["name", "price"]
-        }
-      }
-    });
+      });
+    }
 
+    let result;
+    let engineUsed = "";
+    try {
+      result = await tryScan("gemini-1.5-flash");
+      engineUsed = "1.5-FLASH-STÁVEL";
+    } catch (e1: any) {
+      console.warn("[BACKUP] Motor 1.5 falhou, tentando 2.0...", e1.message);
+      try {
+        result = await tryScan("gemini-2.0-flash");
+        engineUsed = "2.0-FLASH-RESERVA";
+      } catch (e2: any) {
+        throw new Error(`Ambos os motores falharam. Erro 1: ${e1.message}. Erro 2: ${e2.message}`);
+      }
+    }
+
+    console.log(`[SUCESSO] ${engineUsed} Finalizado.`);
     let text = result.text || "{}";
     console.log("Resultado da IA Bruto:", text);
 

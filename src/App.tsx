@@ -125,11 +125,16 @@ function AppContent() {
   // --- AUTH STATE ---
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
+  const [isOnboarding, setIsOnboarding] = useState(false);
+  const [onboardingData, setOnboardingData] = useState({
+    full_name: '',
+    phone: '',
+    city: '',
+    state: '',
+    birth_date: '',
+    email: ''
+  });
   const [authLoading, setAuthLoading] = useState(false);
-  const [authEmail, setAuthEmail] = useState('');
-  const [authPassword, setAuthPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [authMode, setAuthMode] = useState<'login' | 'signup' | 'reset' | 'reset-password'>('login');
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   // --- REFS ---
@@ -144,17 +149,19 @@ function AppContent() {
       return;
     }
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) fetchProfile(session.user.id);
+      if (!session) {
+        // Auto sign-in anonymously for frictionless access
+        supabase.auth.signInAnonymously().then(({ data }) => setSession(data.session));
+      } else {
+        setSession(session);
+        fetchProfile(session.user.id);
+      }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session) {
         fetchProfile(session.user.id);
-        if (event === 'PASSWORD_RECOVERY') {
-          setAuthMode('reset-password');
-        }
       } else {
         setProfile(null);
         setItems([]);
@@ -177,7 +184,34 @@ function AppContent() {
 
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
-    if (data) setProfile(data);
+    if (data) {
+      setProfile(data);
+      // If profile is incomplete, trigger onboarding
+      if (!data.full_name) setIsOnboarding(true);
+      else setIsOnboarding(false);
+    } else {
+      // Create empty profile if none exists (for anonymous users)
+      await supabase.from('profiles').insert([{ id: userId }]);
+      setIsOnboarding(true);
+    }
+  };
+
+  const saveOnboarding = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!session) return;
+    setAuthLoading(true);
+    const { error } = await supabase.from('profiles').update({
+      ...onboardingData,
+      updated_at: new Date()
+    }).eq('id', session.user.id);
+
+    if (!error) {
+      fetchProfile(session.user.id);
+      setIsOnboarding(false);
+    } else {
+      setMessage({ type: 'error', text: 'Erro ao salvar perfil. Tente novamente.' });
+    }
+    setAuthLoading(false);
   };
 
   const fetchItems = async () => {
@@ -203,61 +237,10 @@ function AppContent() {
     if (scannedProduct?.name) checkLastPrice(scannedProduct.name);
   }, [scannedProduct]);
 
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (authMode !== 'reset' && authPassword.length < 6) {
-      setMessage({ type: 'error', text: 'A senha deve ter pelo menos 6 caracteres.' });
-      return;
-    }
-    
-    setAuthLoading(true);
-    setMessage(null);
-    try {
-      if (authMode === 'login') {
-        const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
-        if (error) throw error;
-      } else if (authMode === 'signup') {
-        const { data, error } = await supabase.auth.signUp({ 
-          email: authEmail, 
-          password: authPassword,
-          options: {
-            data: { email: authEmail } // Salva no metadado para o trigger se puder
-          }
-        });
-        if (error) throw error;
-        
-        if (data.session) {
-          setMessage({ type: 'success', text: 'Bem-vindo! Entrando...' });
-        } else {
-          setMessage({ type: 'success', text: 'Conta criada! Verifique seu e-mail ou tente entrar.' });
-          setAuthMode('login');
-        }
-      } else if (authMode === 'reset') {
-        const { error } = await supabase.auth.resetPasswordForEmail(authEmail, {
-          redirectTo: window.location.origin
-        });
-        if (error) throw error;
-        setMessage({ type: 'success', text: 'E-mail de recuperação enviado!' });
-        setAuthMode('login');
-      } else if (authMode === 'reset-password') {
-        const { error } = await supabase.auth.updateUser({ password: newPassword });
-        if (error) throw error;
-        setMessage({ type: 'success', text: 'Senha atualizada com sucesso!' });
-        setAuthMode('login');
-      }
-    } catch (err: any) {
-      let msg = err.message;
-      if (msg === 'Email not confirmed') msg = 'E-mail não confirmado. Verifique sua caixa de entrada ou desative a verificação no Supabase.';
-      if (msg === 'User already registered') msg = 'Este e-mail já está cadastrado. Tente fazer login.';
-      if (msg === 'Invalid login credentials') msg = 'E-mail ou senha incorretos.';
-      setMessage({ type: 'error', text: msg });
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    if (window.confirm('Ao sair do acesso anônimo, seus dados podem ser perdidos. Continuar?')) {
+      await supabase.auth.signOut();
+    }
   };
 
   // --- CAMERA LOGIC ---
@@ -394,55 +377,7 @@ function AppContent() {
     </div>
   );
 
-  if (!session) return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-6 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]">
-      <div className="w-full max-w-md">
-        <div className="text-center">
-          <XDXLogo className="w-24 h-24 mx-auto mb-4" />
-          <h1 className="text-5xl font-black text-[#003d4d] italic tracking-tighter uppercase">XĐX</h1>
-          <p className="text-gray-400 font-bold uppercase tracking-widest text-xs mt-2">Tecnologia em Compras</p>
-        </div>
-        <form onSubmit={handleAuth} className="bg-white p-8 rounded-[3rem] shadow-[0_20px_60px_rgba(0,0,0,0.1)] border border-gray-50 mt-8 space-y-6">
-          <h2 className="text-2xl font-black text-[#003d4d] text-center uppercase tracking-tighter">
-            {authMode === 'login' ? 'Bem-vindo' : authMode === 'signup' ? 'Nova Conta' : authMode === 'reset' ? 'Recuperar Acesso' : 'Nova Senha'}
-          </h2>
-          
-          {authMode !== 'reset-password' && (
-            <input type="email" value={authEmail} onChange={e => setAuthEmail(e.target.value)} placeholder="SEU E-MAIL" required className="w-full bg-gray-50 p-6 rounded-2xl font-black text-xl outline-none focus:ring-4 ring-emerald/20 transition-all" />
-          )}
-          
-          {(authMode === 'login' || authMode === 'signup') && (
-            <input type="password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} placeholder="SUA SENHA" required className="w-full bg-gray-50 p-6 rounded-2xl font-black text-xl outline-none focus:ring-4 ring-emerald/20 transition-all" />
-          )}
 
-          {authMode === 'reset-password' && (
-            <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="NOVA SENHA" required className="w-full bg-gray-50 p-6 rounded-2xl font-black text-xl outline-none focus:ring-4 ring-emerald/20 transition-all" />
-          )}
-
-          {message && (
-            <p className={`font-bold text-center text-sm p-4 rounded-xl ${message.type === 'success' ? 'bg-emerald/10 text-emerald' : 'bg-red-50 text-red-500'}`}>
-              {message.text}
-            </p>
-          )}
-
-          <button type="submit" disabled={authLoading} className="w-full bg-emerald text-white py-6 rounded-2xl font-black uppercase text-xl shadow-xl active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-3">
-            {authLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : (authMode === 'login' ? 'Entrar' : authMode === 'signup' ? 'Cadastrar' : 'Enviar Link')}
-          </button>
-
-          <div className="flex flex-col gap-4 text-center pt-2">
-            {authMode === 'login' && (
-              <button type="button" onClick={() => setAuthMode('reset')} className="text-emerald font-black uppercase tracking-widest text-[12px]">
-                Esqueci minha senha
-              </button>
-            )}
-            <button type="button" onClick={() => setAuthMode((authMode === 'login' || authMode === 'reset-password') ? 'signup' : 'login')} className="text-gray-400 font-black uppercase tracking-widest text-[12px]">
-              {(authMode === 'login' || authMode === 'reset-password') ? 'Ainda não tenho conta' : 'Voltar para Login'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-white text-gray-900 pb-[calc(8rem+env(safe-area-inset-bottom))]">
@@ -600,8 +535,13 @@ function AppContent() {
               {lastPriceInfo && (
                 <div className={`p-3 rounded-xl flex items-center gap-3 border ${scannedProduct.price > lastPriceInfo.price ? 'bg-red-50 border-red-100 text-red-500' : scannedProduct.price < lastPriceInfo.price ? 'bg-green-50 border-green-100 text-green-500' : 'bg-gray-50 border-gray-100 text-gray-400'}`}>
                   <div className="flex-1">
-                    <p className="font-black uppercase text-[8px] tracking-widest">{scannedProduct.price > lastPriceInfo.price ? '⚠️ Subiu!' : scannedProduct.price < lastPriceInfo.price ? '✅ Baixou!' : 'Mesmo preço'}</p>
-                    <p className="text-xs font-bold">Último: R$ {lastPriceInfo.price.toFixed(2)}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-black uppercase text-[8px] tracking-widest">{scannedProduct.price > lastPriceInfo.price ? '⚠️ Subiu!' : scannedProduct.price < lastPriceInfo.price ? '✅ Baixou!' : 'Mesmo preço'}</p>
+                      <span className={`text-xs font-black px-2 py-0.5 rounded-full ${scannedProduct.price > lastPriceInfo.price ? 'bg-red-100' : scannedProduct.price < lastPriceInfo.price ? 'bg-green-100' : 'bg-gray-100'}`}>
+                        {scannedProduct.price > lastPriceInfo.price ? '+' : ''} R$ {(scannedProduct.price - lastPriceInfo.price).toFixed(2)}
+                      </span>
+                    </div>
+                    <p className="text-xs font-bold mt-1">Última compra: R$ {lastPriceInfo.price.toFixed(2)}</p>
                   </div>
                   {scannedProduct.price > lastPriceInfo.price ? <Zap className="w-4 h-4" /> : <Check className="w-4 h-4" />}
                 </div>

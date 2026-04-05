@@ -17,12 +17,12 @@ export async function scanPriceTag(base64Image: string): Promise<ProductInfo | n
 
     if (!response.ok) {
       const errorData = await response.json();
-      // If server says key is missing, return null to show specific UI error
-      if (errorData.error?.includes("Chave de API")) {
-        console.warn("Servidor reportou chave ausente.");
-        return null;
-      }
-      throw new Error(errorData.error || "Erro no servidor ao processar imagem.");
+      console.error("Servidor retornou erro:", errorData);
+      
+      const errorMessage = errorData.details || errorData.error || "Erro no servidor ao processar imagem.";
+      const debugInfo = errorData.debug ? `\nDebug: ${errorData.debug}` : "";
+      
+      throw new Error(`${errorMessage}${debugInfo}`);
     }
 
     const result = await response.json();

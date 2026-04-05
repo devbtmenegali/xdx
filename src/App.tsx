@@ -311,13 +311,20 @@ function AppContent() {
       const result = await scanPriceTag(base64);
       setIsCameraOpen(false);
       setQuantity(1);
-      if (result) setScannedProduct(result);
-      else {
-        setError('Não foi possível identificar o preço. Digite manualmente.');
+      
+      if (result && result.name) {
+        setScannedProduct(result);
+      } else {
+        const msg = 'Não foi possível identificar o produto. Tente um ângulo melhor.';
+        setError(msg);
+        setMessage({ type: 'error', text: msg });
         setScannedProduct({ name: '', price: 0 });
       }
     } catch (e: any) {
-      setError(e.message || 'Erro no processamento');
+      console.error("Erro no processamento:", e);
+      const errMsg = e.message || 'Erro no processamento';
+      setError(errMsg);
+      setMessage({ type: 'error', text: `ERRO: ${errMsg}` });
       setScannedProduct({ name: '', price: 0 });
     } finally {
       setIsScanning(false);

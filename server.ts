@@ -39,7 +39,7 @@ async function startServer() {
           {
             role: "user",
             parts: [
-              { text: "Você é um especialista em leitura de etiquetas de supermercado e preços. Extraia o NOME do produto e o PREÇO unitário. Retorne APENAS um JSON: {\"name\": \"string\", \"price\": number}. Se não ler, use {\"name\": \"\", \"price\": 0}." },
+              { text: "Você é um especialista em leitura de etiquetas de supermercado, anotações à mão e preços. Extraia o NOME do produto e o PREÇO unitário. Retorne APENAS um JSON: {\"name\": \"string\", \"price\": number}. Se a informação for vaga ou manuscrita, tente extrair o melhor possível. Se não ler nada, use {\"name\": \"\", \"price\": 0}." },
               { inlineData: { data: imageData, mimeType: "image/jpeg" } }
             ]
           }
@@ -57,14 +57,38 @@ async function startServer() {
         }
       });
   
-      const text = result.text || "{}";
-      console.log("Resultado da IA:", text);
-      res.json(JSON.parse(text));
+      let text = result.text || "{}";
+      console.log("Resultado da IA Bruto (Local):", text);
+  
+      // Blindagem Ninja: Procura o primeiro { e o último } para extrair o JSON
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        text = jsonMatch[0];
+      } else {
+        throw new Error(`A IA não retornou um JSON válido localmente. Resposta: ${text.substring(0, 50)}...`);
+      }
+  
+      try {
+        const parsed = JSON.parse(text);
+        // Normalização: Preço pode vir como string "34.72" ou com vírgula "34,72"
+        if (typeof parsed.price === 'string') {
+          const cleanedPrice = parsed.price.replace(/R\$/, "").replace(",", ".").replace(/[^\d.]/g, "").trim();
+          parsed.price = parseFloat(cleanedPrice) || 0;
+        }
+        res.json(parsed);
+      } catch (parseError) {
+        console.error("Erro ao parsear JSON da IA (Local):", text);
+        res.status(500).json({ 
+          error: "Erro na interpretação dos dados local",
+          debug: text 
+        });
+      }
     } catch (error: any) {
       console.error("Erro no scan do servidor:", error);
       res.status(500).json({ 
         error: "Erro no processamento da IA",
-        details: error.message || "Erro desconhecido"
+        details: error.message || "Erro desconhecido",
+        quota: error.status === 429
       });
     }
   });

@@ -1,5 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { OpenAI } from 'openai';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -57,24 +56,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     async function tryOpenAIScan() {
       if (!openaiKey) throw new Error("OpenAI Key missing");
-      console.log(`[OPENAI] Ativando Motor de Emergência...`);
+      console.log(`[OPENAI] Ativando Motor de Emergência Direto...`);
       
-      const openai = new OpenAI({ apiKey: openaiKey });
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${openaiKey}`
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [{
             role: "user",
             content: [
-              { text: "Você é um especialista em leitura de etiquetas. Extraia NOME e PREÇO. Retorne APENAS o JSON: {\"name\": \"string\", \"price\": \"string\"}. Atenção a caligrafia 'o'/'O' em preços é '0'." },
-              { image_url: { url: `data:image/jpeg;base64,${imageData}` } }
+              { type: "text", text: "Você é um especialista em leitura de etiquetas. Extraia NOME e PREÇO. Retorne APENAS o JSON: {\"name\": \"string\", \"price\": \"string\"}. Atenção a caligrafia 'o'/'O' em preços é '0'." },
+              { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageData}` } }
             ]
-          }
-        ],
-        response_format: { type: "json_object" }
+          }],
+          response_format: { type: "json_object" }
+        })
       });
 
-      return response.choices[0].message.content || "{}";
+      const data = await response.json();
+      if (!response.ok) throw new Error(JSON.stringify(data.error || data));
+      return data.choices[0].message.content || "{}";
     }
 
     let resultText = "";

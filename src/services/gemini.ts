@@ -29,6 +29,8 @@ export async function scanPriceTag(base64Image: string): Promise<ProductInfo | n
     return {
       name: result.name || "",
       price: typeof result.price === 'number' ? result.price : 0,
+      isWeightBased: result.is_weight_based,
+      estimatedWeightG: result.estimated_weight_g,
       rawText: JSON.stringify(result)
     };
   } catch (error: any) {

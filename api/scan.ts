@@ -16,7 +16,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const ai = new GoogleGenAI({ apiKey });
-    const modelName = "gemini-1.5-flash"; 
+    const modelName = "gemini-3-flash-preview"; 
     const imageData = image.includes(",") ? image.split(",")[1] : image;
 
     console.log("Iniciando scan na Vercel com modelo:", modelName);
@@ -27,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         {
           role: "user",
           parts: [
-            { text: "Você é um especialista em extração de preços e nomes de produtos (em etiquetas, anotações à mão ou cartazes). Extraia o NOME e o PREÇO (por unidade ou por kg). Identifique se o preço é 'por quilo' (is_weight_based: true). Se for pesado, sugira o peso médio unitário em gramas (ex: Maçã=150, Banana=120) no campo 'estimated_weight_g'. Se a informação for vaga, use o contexto para extrair o melhor resultado possível. Retorne APENAS JSON." },
+            { text: "Você é um especialista em leitura de etiquetas de supermercado e preços. Extraia o NOME do produto e o PREÇO unitário. Retorne APENAS um JSON: {\"name\": \"string\", \"price\": number}. Se não ler, use {\"name\": \"\", \"price\": 0}." },
             { inlineData: { data: imageData, mimeType: "image/jpeg" } }
           ]
         }
@@ -38,9 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           type: Type.OBJECT,
           properties: {
             name: { type: Type.STRING },
-            price: { type: Type.NUMBER },
-            is_weight_based: { type: Type.BOOLEAN },
-            estimated_weight_g: { type: Type.NUMBER }
+            price: { type: Type.NUMBER }
           },
           required: ["name", "price"]
         }
